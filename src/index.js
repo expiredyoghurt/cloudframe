@@ -1,1 +1,269 @@
-x
+const E = new TextEncoder();
+const reserved = k => /^[0-9a-f-]{36}(-t)?$/.test(k); // photo files, managed from the Photos tab
+const badKey = k => !k || k.length > 400 || k.startsWith('/') || /[\u0000-\u001f\\]/.test(k) ||
+  k.split('/').some((s, i, a) => s === '..' || s === '.' || (s === '' && i < a.length - 1));
+const MIME = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac' };
+const H = {
+  'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
+  'Strict-Transport-Security': 'max-age=31536000',
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-ancestors 'none'",
+};
+const D = { overlay: true, position: 'bl', opacity: 0.35, units: 'C', h24: true, show_time: true, show_date: true,
+  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true };
+const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'] };
+const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json', ...h } });
+const hmac = async (k, m) => new Uint8Array(await crypto.subtle.sign('HMAC',
+  await crypto.subtle.importKey('raw', E.encode(k), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), E.encode(m)));
+const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+async function same(a, b) { // constant-time compare via fixed-length HMACs
+  const [x, y] = await Promise.all([hmac('cmp', a), hmac('cmp', b)]);
+  let d = 0; for (let i = 0; i < 32; i++) d |= x[i] ^ y[i]; return d === 0;
+}
+async function authed(req, env) {
+  const m = (req.headers.get('Cookie') || '').match(/(?:^|; )pf=(\d+)\.([af])\.([0-9a-f]+)/);
+  if (!m || +m[1] < Date.now()) return null;
+  return (await same(m[3], hex(await hmac(env.SESSION_SECRET, m[1] + '.' + m[2])))) ? m[2] : null;
+}
+const num = (v, d) => { const n = parseInt(v); return isNaN(n) ? d : n; };
+
+async function login(req, env) {
+  const ip = req.headers.get('CF-Connecting-IP') || 'unknown', now = Date.now();
+  const row = await env.DB.prepare('SELECT * FROM login_attempts WHERE ip=?').bind(ip).first();
+  if (row && row.locked_until > now) return json({ error: 'locked', retry: Math.ceil((row.locked_until - now) / 1000) }, 429);
+  const b = await req.json().catch(() => ({}));
+  const fm = b.mode === 'frame'; // frame mode: username + PIN only, view-only session
+  const checks = await Promise.all([
+    same(String(b.username || ''), env.FRAME_USERNAME), same(String(b.pin || ''), env.FRAME_PIN),
+    fm ? true : same(String(b.password || ''), env.FRAME_PASSWORD)]);
+  if (checks.every(Boolean)) {
+    await env.DB.prepare('DELETE FROM login_attempts WHERE ip=?').bind(ip).run();
+    const days = fm ? 90 : 30, sc = fm ? 'f' : 'a', exp = String(now + days * 864e5);
+    const tok = `${exp}.${sc}.${hex(await hmac(env.SESSION_SECRET, exp + '.' + sc))}`;
+    return json({ ok: true, next: fm ? '/' : '/admin' }, 200, { 'Set-Cookie': `pf=${tok}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${days * 86400}` });
+  }
+  const win = num(env.FAIL_WINDOW_MINUTES, 15) * 6e4, lock = num(env.LOCK_MINUTES, 30) * 6e4, max = num(env.MAX_FAILS, 5);
+  const inWin = row && now - row.first_fail < win;
+  const fails = inWin ? row.fails + 1 : 1, first = inWin ? row.first_fail : now, until = fails >= max ? now + lock : 0;
+  await env.DB.prepare(`INSERT INTO login_attempts(ip,fails,first_fail,locked_until) VALUES(?1,?2,?3,?4)
+    ON CONFLICT(ip) DO UPDATE SET fails=?2, first_fail=?3, locked_until=?4`).bind(ip, fails, first, until).run();
+  await new Promise(r => setTimeout(r, 400));
+  return until ? json({ error: 'locked', retry: Math.ceil(lock / 1000) }, 429) : json({ error: 'Invalid credentials' }, 401);
+}
+
+const getSettings = async env => {
+  const r = await env.DB.prepare("SELECT value FROM settings WHERE key='config'").first();
+  return { ...D, ...(r ? JSON.parse(r.value) : {}) };
+};
+const page = async (env, req, n) => {
+  const r = await env.ASSETS.fetch(new Request(new URL(`/${n}.html`, req.url)));
+  const o = new Response(r.body, r); o.headers.set('Cache-Control', 'no-store'); return o;
+};
+
+async function route(req, env) {
+  const u = new URL(req.url), p = u.pathname, m = req.method;
+  if (m !== 'GET' && m !== 'HEAD') { const o = req.headers.get('Origin'); if (o && new URL(o).host !== u.host) return json({ error: 'Bad origin' }, 403); }
+  if (m === 'GET' && (p === '/manifest.webmanifest' || p === '/sw.js' || p === '/icon.svg')) { // public PWA assets
+    const r = await env.ASSETS.fetch(req), o = new Response(r.body, r);
+    if (p === '/sw.js') o.headers.set('Cache-Control', 'no-cache');
+    if (p === '/manifest.webmanifest') o.headers.set('Content-Type', 'application/manifest+json');
+    return o;
+  }
+  if (p === '/login' && m === 'GET') return page(env, req, 'login');
+  if (p === '/api/login' && m === 'POST') return login(req, env);
+  const sc = await authed(req, env);
+  if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + '/login', 302);
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.0' });
+  const viewOk = m === 'GET' && (p === '/' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/photo\/[0-9a-f-]{36}$/.test(p));
+  if (sc === 'f' && !viewOk && p !== '/api/logout')
+    return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
+
+  if (p === '/' ) return page(env, req, 'frame');
+  if (p === '/admin') return page(env, req, 'admin');
+  if (p === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': 'pf=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0' });
+
+  if (p === '/api/settings' && m === 'GET') return json(await getSettings(env));
+  if (p === '/api/settings' && m === 'PUT') {
+    const b = await req.json().catch(() => ({})), cur = await getSettings(env);
+    for (const k in D) {
+      if (!(k in b)) continue;
+      if (Array.isArray(D[k])) { cur[k] = (Array.isArray(b[k]) ? b[k] : []).map(String).filter(x => /^([0-9a-f-]{36}|none)$/.test(x)).slice(0, 100); continue; }
+      const t = typeof D[k]; let v = b[k];
+      if (t === 'boolean') v = !!v; else if (t === 'number') { v = Number(v); if (!isFinite(v)) continue; } else v = String(v).slice(0, 64);
+      if (ENUM[k] && !ENUM[k].includes(v)) continue;
+      cur[k] = v;
+    }
+    cur.opacity = Math.min(0.9, Math.max(0.05, cur.opacity)); cur.interval = Math.min(3600, Math.max(3, cur.interval));
+    cur.music_volume = Math.min(1, Math.max(0, cur.music_volume));
+    await env.DB.prepare("INSERT INTO settings(key,value) VALUES('config',?1) ON CONFLICT(key) DO UPDATE SET value=?1").bind(JSON.stringify(cur)).run();
+    return json(cur);
+  }
+
+  if (p === '/api/photos' && m === 'GET')
+    return json((await env.DB.prepare('SELECT id,album_id,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results);
+  if (p === '/api/photos' && m === 'POST') {
+    const fd = await req.formData().catch(() => null), f = fd?.get('file');
+    if (!f || typeof f === 'string') return json({ error: 'No file' }, 400);
+    if (f.size > 20e6) return json({ error: 'File too large (20MB max)' }, 413);
+    const buf = await f.arrayBuffer(), u8 = new Uint8Array(buf.slice(0, 12));
+    const type = u8[0] === 0xFF && u8[1] === 0xD8 ? 'image/jpeg' : u8[0] === 0x89 && u8[1] === 0x50 ? 'image/png'
+      : u8[0] === 0x52 && u8[8] === 0x57 ? 'image/webp' : null;
+    if (!type) return json({ error: 'Only JPEG, PNG or WebP' }, 415);
+    const id = crypto.randomUUID(), al = String(fd.get('album') || '');
+    const aid = /^[0-9a-f-]{36}$/.test(al) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(al).first() ? al : null;
+    const taken = String(fd?.get('taken_at') || '').slice(0, 10), w = num(fd?.get('w'), 0), h = num(fd?.get('h'), 0);
+    await env.BUCKET.put(id, buf, { httpMetadata: { contentType: type } });
+    const th = fd.get('thumb');
+    if (th && typeof th !== 'string' && th.size < 1e6) {
+      const tb = await th.arrayBuffer(), t8 = new Uint8Array(tb.slice(0, 2));
+      if (t8[0] === 0xFF && t8[1] === 0xD8) await env.BUCKET.put(id + '-t', tb, { httpMetadata: { contentType: 'image/jpeg' } });
+    }
+    await env.DB.prepare('INSERT INTO photos(id,album_id,caption,taken_at,width,height,bytes,uploaded_at) VALUES(?,?,?,?,?,?,?,?)')
+      .bind(id, aid, '', taken, w, h, buf.byteLength, Date.now()).run();
+    return json({ id });
+  }
+  if (p === '/api/stats' && m === 'GET') {
+    const s = await env.DB.prepare('SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes FROM photos').first();
+    const a = await env.DB.prepare('SELECT COUNT(*) n FROM albums').first();
+    return json({ photos: s.photos, bytes: s.bytes, albums: a.n });
+  }
+  // ---- R2 storage browser (admin only: frame sessions are blocked by the view-only gate above)
+  if (p === '/api/storage' && m === 'GET') {
+    const prefix = u.searchParams.get('prefix') || '';
+    if (prefix && (badKey(prefix) || !prefix.endsWith('/'))) return json({ error: 'Bad folder' }, 400);
+    const folders = new Set(), files = []; let hidden = 0, cursor, pages = 0;
+    do {
+      const l = await env.BUCKET.list({ prefix, delimiter: '/', cursor });
+      l.delimitedPrefixes.forEach(f => folders.add(f));
+      for (const o of l.objects) {
+        if (reserved(o.key)) { hidden++; continue; }
+        if (o.key !== prefix) files.push({ key: o.key, name: o.key.slice(prefix.length), size: o.size, uploaded: o.uploaded });
+      }
+      cursor = l.truncated ? l.cursor : null;
+    } while (cursor && ++pages < 10);
+    return json({ prefix, folders: [...folders].sort(), files, hidden, more: !!cursor });
+  }
+  if (p === '/api/storage/folder' && m === 'POST') {
+    const b = await req.json().catch(() => ({})); let k = String(b.path || '').trim().replace(/^\/+/, '');
+    if (!k.endsWith('/')) k += '/';
+    if (badKey(k) || k.length < 2) return json({ error: 'Bad folder name' }, 400);
+    await env.BUCKET.put(k, new Uint8Array(0)); return json({ ok: true });
+  }
+  const sm = p.match(/^\/api\/storage\/(.+)$/);
+  if (sm) {
+    let k; try { k = decodeURIComponent(sm[1]); } catch { return json({ error: 'Bad key' }, 400); }
+    if (badKey(k) || reserved(k)) return json({ error: 'Not allowed' }, 400);
+    const ext = k.split('.').pop().toLowerCase();
+    if (m === 'PUT') {
+      if (k.endsWith('/') || !MIME[ext]) return json({ error: 'Only audio files (mp3, m4a, aac, ogg, wav, flac) can be uploaded' }, 415);
+      const len = +req.headers.get('Content-Length');
+      if (!len) return json({ error: 'Empty file or unknown size' }, 411);
+      if (len > 90e6) return json({ error: 'File too large (90 MB max)' }, 413);
+      await env.BUCKET.put(k, req.body, { httpMetadata: { contentType: MIME[ext] } }); return json({ ok: true });
+    }
+    if (m === 'DELETE') {
+      if (k.endsWith('/') && (await env.BUCKET.list({ prefix: k, limit: 2 })).objects.some(o => o.key !== k)) return json({ error: 'Folder is not empty' }, 409);
+      await env.BUCKET.delete(k); return json({ ok: true });
+    }
+    if (m === 'GET' && !k.endsWith('/')) {
+      const o = await env.BUCKET.get(k, { range: req.headers });
+      if (!o) return json({ error: 'Not found' }, 404);
+      const h = { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, no-store',
+        'Content-Disposition': MIME[ext] ? 'inline' : 'attachment' };
+      if (o.range) {
+        const off = o.range.offset ?? 0, len = o.range.length ?? o.size - off;
+        h['Content-Range'] = `bytes ${off}-${off + len - 1}/${o.size}`; h['Content-Length'] = String(len);
+        return new Response(o.body, { status: 206, headers: h });
+      }
+      h['Content-Length'] = String(o.size); return new Response(o.body, { headers: h });
+    }
+  }
+  if (p === '/api/music' && m === 'GET') { // files in the R2 "BGM/" folder
+    const out = []; let cursor;
+    do {
+      const l = await env.BUCKET.list({ prefix: 'BGM/', cursor });
+      for (const o of l.objects) { const n = o.key.slice(4); if (!n.includes('/') && MIME[n.split('.').pop().toLowerCase()]) out.push({ name: n, size: o.size }); }
+      cursor = l.truncated ? l.cursor : null;
+    } while (cursor);
+    return json(out);
+  }
+  const mm = p.match(/^\/api\/music\/(.+)$/);
+  if (mm && m === 'GET') {
+    let n; try { n = decodeURIComponent(mm[1]); } catch { return json({ error: 'Bad name' }, 400); }
+    const ext = n.split('.').pop().toLowerCase();
+    if (!MIME[ext] || n.includes('/') || n.startsWith('.')) return json({ error: 'Not found' }, 404);
+    const o = await env.BUCKET.get('BGM/' + n, { range: req.headers });
+    if (!o) return json({ error: 'Not found' }, 404);
+    const h = { 'Content-Type': MIME[ext], 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' };
+    if (o.range) {
+      const off = o.range.offset ?? 0, len = o.range.length ?? o.size - off;
+      h['Content-Range'] = `bytes ${off}-${off + len - 1}/${o.size}`; h['Content-Length'] = String(len);
+      return new Response(o.body, { status: 206, headers: h });
+    }
+    h['Content-Length'] = String(o.size); return new Response(o.body, { headers: h });
+  }
+  const tm = p.match(/^\/api\/thumb\/([0-9a-f-]{36})$/);
+  if (tm && m === 'GET') {
+    const o = (await env.BUCKET.get(tm[1] + '-t')) || (await env.BUCKET.get(tm[1]));
+    if (!o) return json({ error: 'Not found' }, 404);
+    return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata.contentType, 'Cache-Control': 'private, max-age=86400, immutable' } });
+  }
+  if (p === '/api/photos/bulk' && m === 'POST') {
+    const b = await req.json().catch(() => ({})), ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter(x => /^[0-9a-f-]{36}$/.test(x)).slice(0, 200);
+    if (b.action === 'delete') for (const id of ids) {
+      await env.BUCKET.delete(id); await env.BUCKET.delete(id + '-t'); await env.DB.prepare('DELETE FROM photos WHERE id=?').bind(id).run();
+    } else if (b.action === 'move') {
+      const a = String(b.album_id || ''), ok = /^[0-9a-f-]{36}$/.test(a) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(a).first();
+      for (const id of ids) await env.DB.prepare('UPDATE photos SET album_id=? WHERE id=?').bind(ok ? a : null, id).run();
+    } else return json({ error: 'Bad action' }, 400);
+    return json({ ok: true, n: ids.length });
+  }
+  if (p === '/api/albums' && m === 'GET') {
+    const a = (await env.DB.prepare('SELECT a.id,a.name,(SELECT COUNT(*) FROM photos WHERE album_id=a.id) n,(SELECT id FROM photos WHERE album_id=a.id ORDER BY uploaded_at DESC LIMIT 1) cover FROM albums a ORDER BY a.name COLLATE NOCASE').all()).results;
+    const u0 = await env.DB.prepare('SELECT COUNT(*) n,(SELECT id FROM photos WHERE album_id IS NULL ORDER BY uploaded_at DESC LIMIT 1) cover FROM photos WHERE album_id IS NULL').first();
+    return json({ albums: a, unsorted: u0.n, ucover: u0.cover });
+  }
+  if (p === '/api/albums' && m === 'POST') {
+    const b = await req.json().catch(() => ({})), name = String(b.name || '').trim().slice(0, 60);
+    if (!name) return json({ error: 'Name required' }, 400);
+    const id = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO albums(id,name,created_at) VALUES(?,?,?)').bind(id, name, Date.now()).run();
+    return json({ id });
+  }
+  const am = p.match(/^\/api\/albums\/([0-9a-f-]{36})$/);
+  if (am && m === 'PATCH') {
+    const b = await req.json().catch(() => ({})), name = String(b.name || '').trim().slice(0, 60);
+    if (!name) return json({ error: 'Name required' }, 400);
+    await env.DB.prepare('UPDATE albums SET name=? WHERE id=?').bind(name, am[1]).run(); return json({ ok: true });
+  }
+  if (am && m === 'DELETE') { // photos move to Unsorted
+    await env.DB.prepare('UPDATE photos SET album_id=NULL WHERE album_id=?').bind(am[1]).run();
+    await env.DB.prepare('DELETE FROM albums WHERE id=?').bind(am[1]).run(); return json({ ok: true });
+  }
+  const pm = p.match(/^\/api\/photos?\/([0-9a-f-]{36})$/);
+  if (pm) {
+    const id = pm[1];
+    if (m === 'GET') {
+      const o = await env.BUCKET.get(id); if (!o) return json({ error: 'Not found' }, 404);
+      return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata.contentType, 'Cache-Control': 'private, max-age=86400, immutable' } });
+    }
+    if (m === 'PATCH') {
+      const b = await req.json().catch(() => ({}));
+      if ('caption' in b) await env.DB.prepare('UPDATE photos SET caption=? WHERE id=?').bind(String(b.caption || '').slice(0, 200), id).run();
+      if ('album_id' in b) {
+        const a = String(b.album_id || ''), ok = /^[0-9a-f-]{36}$/.test(a) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(a).first();
+        await env.DB.prepare('UPDATE photos SET album_id=? WHERE id=?').bind(ok ? a : null, id).run();
+      }
+      return json({ ok: true });
+    }
+    if (m === 'DELETE') { await env.BUCKET.delete(id); await env.BUCKET.delete(id + '-t'); await env.DB.prepare('DELETE FROM photos WHERE id=?').bind(id).run(); return json({ ok: true }); }
+  }
+  return json({ error: 'Not found' }, 404);
+}
+
+export default {
+  async fetch(req, env) {
+    const r = await route(req, env), o = new Response(r.body, r);
+    for (const k in H) o.headers.set(k, H[k]);
+    return o;
+  },
+};
