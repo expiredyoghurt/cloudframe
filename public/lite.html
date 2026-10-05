@@ -10,9 +10,11 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Helve
 .t{font-size:44px;font-weight:bold;line-height:1.1}.m{font-size:18px}
 #cb{position:fixed;left:50%;bottom:20px;-webkit-transform:translateX(-50%);transform:translateX(-50%);display:none;background:rgba(0,0,0,.65);border-radius:14px;padding:8px;white-space:nowrap;z-index:9}
 #cb button,#cb a{display:inline-block;margin:0 3px;padding:9px 14px;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:#fff;font:16px Helvetica,Arial,sans-serif;text-decoration:none}
+#hint{display:none;position:fixed;left:20px;right:20px;bottom:90px;padding:12px 16px;border-radius:12px;background:rgba(0,0,0,.75);color:#fff;font:16px Helvetica,Arial,sans-serif;text-align:center;z-index:10}
 </style></head><body>
 <div class=s id=a></div><div class=s id=b></div><div id=ov></div>
-<div id=cb><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div>
+<div id=cb><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><button id=fs>Fullscreen</button><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div>
+<div id=hint>Fullscreen is not available in this browser. Tap Share, then Add to Home Screen, and open CloudFrame Lite from your Home Screen for a full-screen view.</div>
 <script>
 var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
 var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -56,6 +58,12 @@ function ui(){$('cb').style.display='block';clearTimeout(UT);UT=setTimeout(funct
 document.onclick=function(e){var id=e.target.id;
 if(id==='nx'){show(i+1);loop();ui()}else if(id==='pv'){show(i-1);loop();ui()}
 else if(id==='pp'){paused=!paused;e.target.innerHTML=paused?'&#9654;':'&#10074;&#10074;';ui()}
+else if(id==='fs'){fsToggle();ui()}
 else if(e.target.tagName!=='A')ui()};
+var de=document.documentElement;
+function fsOn(){return document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement}
+function fsToggle(){var r=de.requestFullscreen||de.webkitRequestFullscreen||de.mozRequestFullScreen||de.msRequestFullscreen;
+if(!r){$('hint').style.display='block';setTimeout(function(){$('hint').style.display='none'},8000);return}
+if(fsOn()){var x=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;x.call(document)}else r.call(de)}
 load();setInterval(load,60000);setInterval(draw,10000);
 </script></body></html>

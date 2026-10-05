@@ -14,7 +14,7 @@ body.ui #cb{opacity:1;pointer-events:auto}
 #mg{display:contents}#mg[hidden]{display:none}#mv{width:90px;padding:0;min-height:0;vertical-align:middle}#mt{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
 </style></head><body>
 <img class=s id=a alt=""><img class=s id=b alt=""><div id=ov></div>
-<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs>⛶</button><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
+<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
 <script>
 let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0;
 const $=id=>document.getElementById(id);
@@ -56,12 +56,16 @@ o.innerHTML=Object.entries(G).map(([c,ks])=>{const h=ks.map(k=>F[k]||'').join(''
 // controls
 const showUI=()=>{document.body.classList.add('ui');clearTimeout(ut);ut=setTimeout(()=>document.body.classList.remove('ui'),3e3)};
 ['pointermove','pointerdown'].forEach(e=>addEventListener(e,showUI));
-const fsT=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.().catch(()=>{});
+const de=document.documentElement,fsOn=()=>document.fullscreenElement||document.webkitFullscreenElement,fsCan=!!(de.requestFullscreen||de.webkitRequestFullscreen);
+const fsT=()=>{if(!fsCan)return alert('Fullscreen is not available in this browser. On iPad or iPhone, use Share > Add to Home Screen and open CloudFrame from the Home Screen.');
+if(fsOn())(document.exitFullscreen||document.webkitExitFullscreen).call(document);else{const p=(de.requestFullscreen||de.webkitRequestFullscreen).call(de);p&&p.catch&&p.catch(()=>{})}};
+['fullscreenchange','webkitfullscreenchange'].forEach(e=>document.addEventListener(e,()=>$('fs').textContent=fsOn()?'✕':'⛶'));
+addEventListener('dblclick',e=>{if(!e.target.closest('#cb'))fsT()});
 const pp=()=>{paused=!paused;$('pp').textContent=paused?'▶':'❚❚'};
 $('nx').onclick=()=>{next();loop()};$('pv').onclick=()=>{show(i-1);loop()};$('pp').onclick=pp;$('fs').onclick=fsT;
 $('fa').onchange=()=>{localStorage.fa=$('fa').value;load()};
 $('lo').onclick=async()=>{await fetch('/api/logout').catch(()=>{});await Promise.all((await caches.keys()).map(k=>caches.delete(k)));location='/login'};
-addEventListener('keydown',e=>{showUI();if(e.key=='ArrowRight'){next();loop()}if(e.key=='ArrowLeft'){show(i-1);loop()}if(e.key==' ')pp()});
+addEventListener('keydown',e=>{showUI();if(e.key=='f')fsT();if(e.key=='ArrowRight'){next();loop()}if(e.key=='ArrowLeft'){show(i-1);loop()}if(e.key==' ')pp()});
 let sx=0;addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
 addEventListener('touchend',e=>{const d=e.changedTouches[0].clientX-sx;if(Math.abs(d)>60){d<0?next():show(i-1);loop()}},{passive:true});
 async function wl(){try{await navigator.wakeLock?.request('screen')}catch{}}
