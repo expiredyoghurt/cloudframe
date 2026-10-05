@@ -1,4 +1,5 @@
 const E = new TextEncoder();
+const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'];
 const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 61: 'Rain', 63: 'Rain', 65: 'Heavy rain',
   71: 'Snow', 73: 'Snow', 75: 'Heavy snow', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm' };
 let WX = { k: '', t: 0, v: null }; // weather cache (lite frame gets weather via the Worker)
@@ -28,11 +29,11 @@ const MIME = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audi
 const H = {
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
   'Strict-Transport-Security': 'max-age=31536000',
-  'Content-Security-Policy': "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; media-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-ancestors 'none'",
 };
 const D = { overlay: true, position: 'bl', opacity: 0.35, units: 'C', h24: true, show_time: true, show_date: true,
-  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true };
-const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'] };
+  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false };
+const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'] };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json', ...h } });
 const hmac = async (k, m) => new Uint8Array(await crypto.subtle.sign('HMAC',
   await crypto.subtle.importKey('raw', E.encode(k), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), E.encode(m)));
@@ -98,8 +99,8 @@ async function route(req, env) {
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
-  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.0' });
-  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/photo\/[0-9a-f-]{36}$/.test(p));
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.1' });
+  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
   if (sc === 'f' && !viewOk && p !== '/api/logout')
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
 
@@ -122,12 +123,13 @@ async function route(req, env) {
     }
     cur.opacity = Math.min(0.9, Math.max(0.05, cur.opacity)); cur.interval = Math.min(3600, Math.max(3, cur.interval));
     cur.music_volume = Math.min(1, Math.max(0, cur.music_volume));
+    cur.video_max = Math.min(300, Math.max(0, cur.video_max));
     await env.DB.prepare("INSERT INTO settings(key,value) VALUES('config',?1) ON CONFLICT(key) DO UPDATE SET value=?1").bind(JSON.stringify(cur)).run();
     return json(cur);
   }
 
   if (p === '/api/photos' && m === 'GET')
-    return json((await env.DB.prepare('SELECT id,album_id,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results);
+    return json((await env.DB.prepare('SELECT id,album_id,kind,duration,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results);
   if (p === '/api/photos' && m === 'POST') {
     const fd = await req.formData().catch(() => null), f = fd?.get('file');
     if (!f || typeof f === 'string') return json({ error: 'No file' }, 400);
@@ -149,17 +151,65 @@ async function route(req, env) {
       .bind(id, aid, '', taken, w, h, buf.byteLength, Date.now()).run();
     return json({ id });
   }
+  // ---- video: chunked multipart upload through the Worker, and range playback
+  if (p === '/api/video/start' && m === 'POST') {
+    const b = await req.json().catch(() => ({}));
+    if (!VIDEO_MIME.includes(b.mime)) return json({ error: 'Unsupported video type' }, 415);
+    if (!(b.size > 0) || b.size > 500e6) return json({ error: 'Video too large (500 MB max)' }, 413);
+    const id = crypto.randomUUID(), mp = await env.BUCKET.createMultipartUpload(id, { httpMetadata: { contentType: b.mime } });
+    return json({ id, uploadId: mp.uploadId });
+  }
+  if (p === '/api/video/part' && m === 'PUT') {
+    const id = u.searchParams.get('id'), uid = u.searchParams.get('uploadId'), n = +u.searchParams.get('n');
+    if (!/^[0-9a-f-]{36}$/.test(id) || !uid || !(n >= 1 && n <= 10000)) return json({ error: 'Bad part' }, 400);
+    const part = await env.BUCKET.resumeMultipartUpload(id, uid).uploadPart(n, await req.arrayBuffer());
+    return json({ partNumber: part.partNumber, etag: part.etag });
+  }
+  if (p === '/api/video/thumb' && m === 'PUT') {
+    const id = u.searchParams.get('id'), tb = await req.arrayBuffer(), t8 = new Uint8Array(tb.slice(0, 2));
+    if (!/^[0-9a-f-]{36}$/.test(id) || tb.byteLength > 1e6 || t8[0] !== 0xFF || t8[1] !== 0xD8) return json({ error: 'Bad thumbnail' }, 400);
+    await env.BUCKET.put(id + '-t', tb, { httpMetadata: { contentType: 'image/jpeg' } }); return json({ ok: true });
+  }
+  if (p === '/api/video/abort' && m === 'POST') {
+    const b = await req.json().catch(() => ({}));
+    if (/^[0-9a-f-]{36}$/.test(b.id) && b.uploadId) { try { await env.BUCKET.resumeMultipartUpload(b.id, b.uploadId).abort(); } catch {} await env.BUCKET.delete(b.id + '-t'); }
+    return json({ ok: true });
+  }
+  if (p === '/api/video/complete' && m === 'POST') {
+    const b = await req.json().catch(() => ({})), d = +b.duration;
+    if (!/^[0-9a-f-]{36}$/.test(b.id) || !b.uploadId || !Array.isArray(b.parts) || !b.parts.length) return json({ error: 'Bad request' }, 400);
+    if (!(d > 0 && d <= 301)) return json({ error: 'Video must be under 5 minutes' }, 400);
+    const al = String(b.album || ''), aid = /^[0-9a-f-]{36}$/.test(al) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(al).first() ? al : null;
+    let obj; try { obj = await env.BUCKET.resumeMultipartUpload(b.id, b.uploadId).complete(b.parts.map(x => ({ partNumber: +x.partNumber, etag: String(x.etag) }))); }
+    catch { return json({ error: 'Upload could not be completed' }, 400); }
+    await env.DB.prepare("INSERT INTO photos(id,album_id,kind,duration,mime,caption,taken_at,width,height,bytes,uploaded_at) VALUES(?,?,'video',?,?,'',?,?,?,?,?)")
+      .bind(b.id, aid, d, String(b.mime || '').slice(0, 40), String(b.taken_at || '').slice(0, 10), num(b.w, 0), num(b.h, 0), obj.size, Date.now()).run();
+    return json({ id: b.id });
+  }
+  const vm = p.match(/^\/api\/video\/([0-9a-f-]{36})$/);
+  if (vm && m === 'GET') {
+    const o = await env.BUCKET.get(vm[1], { range: req.headers });
+    if (!o) return json({ error: 'Not found' }, 404);
+    const h = { 'Content-Type': o.httpMetadata?.contentType || 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=86400' };
+    if (o.range) {
+      const off = o.range.offset ?? 0, len = o.range.length ?? o.size - off;
+      h['Content-Range'] = `bytes ${off}-${off + len - 1}/${o.size}`; h['Content-Length'] = String(len);
+      return new Response(o.body, { status: 206, headers: h });
+    }
+    h['Content-Length'] = String(o.size); return new Response(o.body, { headers: h });
+  }
   if (p === '/api/lite' && m === 'GET') { // everything the lite frame needs in one small response
     const S = await getSettings(env), hid = S.hide_albums || [];
-    const rows = (await env.DB.prepare('SELECT id,album_id,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
-      .filter(r => !hid.includes(r.album_id || 'none')).map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at }));
+    const rows = (await env.DB.prepare('SELECT id,album_id,kind,duration,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
+      .filter(r => !hid.includes(r.album_id || 'none') && (r.kind === 'video' ? (S.lite_videos && S.content !== 'photos') : S.content !== 'videos'))
+      .map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at, kind: r.kind, duration: r.duration }));
     const { hide_albums, music, music_volume, music_shuffle, lat, lon, tz, ...pub } = S;
     return json({ s: pub, p: rows, w: await weatherFor(S), off: tzOffset(S.tz) });
   }
   if (p === '/api/stats' && m === 'GET') {
-    const s = await env.DB.prepare('SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes FROM photos').first();
+    const s = await env.DB.prepare("SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes, COALESCE(SUM(kind='video'),0) videos FROM photos").first();
     const a = await env.DB.prepare('SELECT COUNT(*) n FROM albums').first();
-    return json({ photos: s.photos, bytes: s.bytes, albums: a.n });
+    return json({ photos: s.photos, bytes: s.bytes, videos: s.videos, albums: a.n });
   }
   // ---- R2 storage browser (admin only: frame sessions are blocked by the view-only gate above)
   if (p === '/api/storage' && m === 'GET') {
