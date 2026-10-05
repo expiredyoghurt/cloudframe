@@ -35,8 +35,8 @@ figure.sel::after{content:'✓';position:absolute;top:14px;left:14px;width:24px;
 #bar,#sbar{height:6px;background:var(--in);border-radius:4px;overflow:hidden;margin:6px 0;display:none}#bar i,#sbar i{display:block;height:100%;width:0;background:var(--ac)}
 #bb{position:sticky;top:12px;z-index:4;background:var(--card2);border:1px solid var(--ac);border-radius:12px;padding:8px 12px;margin:8px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}#bb[hidden]{display:none}
 #pv{position:relative;aspect-ratio:16/9;max-width:520px;background:linear-gradient(135deg,#3b6ef5,#7a4bd6 60%,#e0884a);border-radius:14px;overflow:hidden}
-.pb{position:absolute;margin:3%;padding:1.5% 2.5%;border-radius:10px;background:rgba(0,0,0,var(--o));color:#fff;font-size:11px;backdrop-filter:blur(4px)}
-.tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}.pt{font-size:20px}
+.pb{position:absolute;margin:3%;padding:1.5% 2.5%;border-radius:10px;background:rgba(0,0,0,var(--o));color:#fff;font-size:calc(11px*var(--k,1));backdrop-filter:blur(4px)}
+.tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}.pt{font-size:calc(20px*var(--k,1))}
 #crumb{margin:4px 0 10px}#crumb a,.row a{color:var(--ac);text-decoration:none}
 .row{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:8px 12px;margin:6px 0}.row span{overflow-wrap:anywhere}
 #ts{position:fixed;bottom:84px;left:50%;transform:translate(-50%,20px);background:var(--tx);color:var(--bg);padding:9px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:50}#ts.on{opacity:1;transform:translate(-50%,0)}
@@ -49,7 +49,7 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 .vb{position:absolute;top:14px;right:50px;background:#000b;color:#fff;border-radius:8px;padding:2px 8px;font-size:12px}
 .up{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}.up button{padding:10px 18px;font-weight:600}
 </style></head><body>
-<nav><div class=brand>📷 CloudFrame <small>v1.3</small></div>
+<nav><div class=brand>📷 CloudFrame <small>v1.4</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Media</span></a>
 <a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
@@ -72,6 +72,7 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div class=panel><h3>Overlay</h3><label><input type=checkbox name=overlay> Show overlay</label><br>
 <label>Position <select name=position><option value=tl>Top left</option><option value=tr>Top right</option><option value=bl>Bottom left</option><option value=br>Bottom right</option><option value=split>Split across all four corners</option></select></label><br>
 <label>Opacity <input type=range name=opacity min=.05 max=.9 step=.05></label><br>
+<label>Text size <input type=range name=overlay_scale min=60 max=180 step=5> <output id=osv>100%</output></label><br>
 <label><input type=checkbox name=show_time> Time</label><label><input type=checkbox name=show_date> Date</label><label><input type=checkbox name=show_weather> Weather</label><label><input type=checkbox name=show_temp> Temperature</label><label><input type=checkbox name=show_meta> Photo info</label></div>
 <div class=panel><h3>Slideshow</h3><label>Seconds per photo <input type=number name=interval min=3 style="width:80px"></label><br>
 <label>Order <select name=order><option value=shuffle>Shuffle</option><option value=sequential>Newest first</option></select></label><br>
@@ -85,7 +86,11 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <label>Lat <input name=lat style="width:100px"></label><label>Lon <input name=lon style="width:100px"></label><br>
 <label>Timezone <input name=tz list=tzs></label><datalist id=tzs></datalist><br>
 <label><input type=checkbox name=show_psi> Show PSI (Singapore, NEA 24-hour)</label>
-<label>Region <select name=psi_region><option value=national>National</option><option value=north>North</option><option value=south>South</option><option value=east>East</option><option value=west>West</option><option value=central>Central</option></select></label></div>
+<label>Region <select name=psi_region><option value=national>National</option><option value=north>North</option><option value=south>South</option><option value=east>East</option><option value=west>West</option><option value=central>Central</option></select></label><br>
+<label><input type=checkbox name=show_nowcast> 2-hour nowcast</label>
+<label>Area <input name=nowcast_area list=nca placeholder="nearest to location"></label><datalist id=nca></datalist><br>
+<label><input type=checkbox name=show_uv> UV index</label>
+<p class=sub>Official NEA data via data.gov.sg (Singapore only). PSI and UV show in daylight hours only (not during sleep hours); PSI refreshes hourly, the nowcast and UV every 30 minutes.</p></div>
 <div class=panel><h3>Auto brightness</h3><label><input type=checkbox name=light_sensor> Adjust brightness with the device's light sensor</label><br>
 <label>Never dimmer than <input type=number name=light_min min=5 max=100 style="width:70px"> %</label>
 <p class=sub>Only works on devices and browsers that expose an ambient light sensor (some Android/Chrome devices, often behind a browser flag). iPads, iPhones and most laptops don't. It dims the photos in software; it can't change the hardware backlight. The frame's control bar shows what it found.</p></div>
@@ -122,10 +127,10 @@ document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.d
 // ----- display settings
 Intl.supportedValuesOf?.('timeZone').forEach(z=>$('#tzs').append(new Option(z)));
 const fv=()=>{const b={};[...$('#sf').elements].filter(e=>e.name).forEach(x=>b[x.name]=x.type=='checkbox'?x.checked:x.value);return b};
-const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120',psi:'● PSI 54 · Moderate'};
-function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_meta,tk:f.show_meta,n:f.show_meta,psi:f.show_psi};
-const G=f.position=='split'?{tl:['time','date'],tr:['temp','w','psi'],bl:['cap'],br:['tk','n']}:{[f.position]:['time','date','temp','w','psi','cap','tk','n']};
-$('#pvi').style.setProperty('--o',f.opacity);
+const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120',psi:'● PSI 54 · Moderate',nc:'Next 2 h · Bishan: Light Rain',uv:'● UV 6 · High'};
+function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_meta,tk:f.show_meta,n:f.show_meta,psi:f.show_psi,nc:f.show_nowcast,uv:f.show_uv};
+const G=f.position=='split'?{tl:['time','date'],tr:['temp','w','nc'],bl:['uv','psi','cap'],br:['tk','n']}:{[f.position]:['time','date','temp','w','nc','uv','psi','cap','tk','n']};
+$('#pvi').style.setProperty('--o',f.opacity);$('#pvi').style.setProperty('--k',f.overlay_scale/100);$('#osv').textContent=f.overlay_scale+'%';
 $('#pvi').innerHTML=!f.overlay?'':Object.entries(G).map(([c,ks])=>{const k=ks.filter(x=>sh[x]);return k.length?`<div class="pb ${c}">${k.map(x=>`<div>${SM[x]}</div>`).join('')}</div>`:''}).join('')}
 let st;$('#sf').oninput=()=>{pre();clearTimeout(st);st=setTimeout(async()=>{const d=await j('/api/settings',body(fv(),'PUT'));if(!d.error)toast('Saved ✓')},600)};
 $('#gq').onclick=async()=>{const r=(await(await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent($('#q').value))).json()).results?.[0];
@@ -267,5 +272,5 @@ if(!d.id)throw new Error(d.error||'upload failed')}
 catch(e){await j('/api/video/abort',body({id:st.id,uploadId:st.uploadId}));throw e}}
 $('#bp').onclick=()=>$('#f').click();$('#bv').onclick=()=>$('#fv').click();$('#fv').onchange=e=>{handle(e.target.files);e.target.value=''};
 async function loadM(){const m=await j('/api/music');$('#tr').innerHTML=!Array.isArray(m)?'':m.length?`<small>${m.length} track${m.length==1?'':'s'}: ${m.map(x=>esc(x.name)).join(', ')}</small>`:'<small>No tracks found yet.</small>'}
-(async()=>{await loadS();loadM();await refresh();tab()})();
+(async()=>{await loadS();loadM();j('/api/nowcast/areas').then(a=>Array.isArray(a)&&a.forEach(n=>$('#nca').append(new Option(n))));await refresh();tab()})();
 </script></body></html>

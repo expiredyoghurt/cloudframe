@@ -3,26 +3,27 @@
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,sans-serif;cursor:none}body.ui{cursor:default}
 .s{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1.5s}.s.on{opacity:1}
-.b{position:absolute;margin:3vmin;padding:1.6vmin 2.2vmin;border-radius:2.4vmin;background:rgba(0,0,0,var(--o,.35));
-backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;text-shadow:0 1px 3px #0008;max-width:42vw}
+.b{position:absolute;margin:3vmin;padding:calc(1.6vmin*var(--k,1)) calc(2.2vmin*var(--k,1));border-radius:calc(2.4vmin*var(--k,1));background:rgba(0,0,0,var(--o,.35));
+backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;text-shadow:0 1px 3px #0008;max-width:calc(42vw*var(--k,1))}
 .tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}
-.t{font-size:5vmin;font-weight:600;line-height:1.15}.m{font-size:2.2vmin;opacity:.92}
+.t{font-size:calc(5vmin*var(--k,1));font-weight:600;line-height:1.15}.m{font-size:calc(2.2vmin*var(--k,1));opacity:.92}
 #cb{position:fixed;left:50%;bottom:2.5vmin;transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:8px 10px;border-radius:16px;
 background:rgba(0,0,0,.6);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
 body.ui #cb{opacity:1;pointer-events:auto}
 #cb>*,#mg>*{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer}
 #mg{display:contents}#mg[hidden]{display:none}#mv{width:90px;padding:0;min-height:0;vertical-align:middle}#mt{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
 #dim{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;transition:opacity 3s;z-index:1}#ov .b{z-index:2}
-.c{left:50%;top:50%;margin:0;transform:translate(-50%,-50%);max-width:90vw;text-align:center;padding:3.5vmin 6vmin}.c .t{font-size:17vmin}.c .m{font-size:4.4vmin}
-.c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:3.6vmin;opacity:.92}.pd{display:inline-block;width:.7em;height:.7em;border-radius:50%;margin-right:.4em}
+.c{left:50%;top:50%;margin:0;transform:translate(-50%,-50%);max-width:90vw;text-align:center;padding:calc(3.5vmin*var(--k,1)) calc(6vmin*var(--k,1))}.c .t{font-size:calc(17vmin*var(--k,1))}.c .m{font-size:calc(4.4vmin*var(--k,1))}
+.c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:calc(3.6vmin*var(--k,1));opacity:.92}.pd{display:inline-block;width:.7em;height:.7em;border-radius:50%;margin-right:.4em}
 </style></head><body>
 <img class=s id=a alt=""><img class=s id=b alt=""><video class=s id=vd playsinline muted preload=auto></video><div id=dim></div><div id=ov></div>
 <div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><span id=lx hidden></span><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
 <script>
-let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='',musicOff=false,lux=null,ls=null,lsTried=false;
+let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='',musicOff=false,lux=null,ls=null,lsTried=false,NC=null,UV=null,nct=0,uvt=0,nck='';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const PC={Good:'#4cc38a',Moderate:'#4da3ff',Unhealthy:'#f5d33f','Very unhealthy':'#f59e42',Hazardous:'#ef5350'};
+const UC={Low:'#4cc38a',Moderate:'#f5d33f',High:'#f59e42','Very high':'#ef5350',Extreme:'#a06cd5'};
 const WM={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Drizzle',53:'Drizzle',55:'Drizzle',61:'Rain',63:'Rain',65:'Heavy rain',71:'Snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
 async function api(p){const r=await fetch(p);if(r.status==401){location='/login?mode=frame';throw 0}return r.json()}
 async function weather(){if(S.lat===''||S.lon==='')return Wx=null;
@@ -38,7 +39,9 @@ const p=all.filter(x=>{const k=x.album_id||'none';return !hid.includes(k)&&(fl==
 if(p.length!=P.length||p.some((x,k)=>x.id!=P[k].id)){P=p;O=[...P.keys()];if(S.order=='shuffle')O.sort(()=>Math.random()-.5);i=-1;
 if(P.length)show(0);else{$('a').classList.remove('on');$('b').classList.remove('on');now=null}}
 const k=S.lat+S.lon+S.units;if(k!=wk||Date.now()-wt>9e5){wk=k;wt=Date.now();weather()}
-if(S.show_psi){if(Date.now()-pt>9e5||pk!=S.psi_region){pt=Date.now();pk=S.psi_region;api('/api/psi').then(d=>{PS=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else PS=null;
+if(S.show_psi){if(Date.now()-pt>36e5||pk!=S.psi_region){pt=Date.now();pk=S.psi_region;api('/api/psi').then(d=>{PS=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else PS=null;
+if(S.show_nowcast){const k=S.nowcast_area+S.lat+S.lon;if(Date.now()-nct>18e5||nck!=k){nct=Date.now();nck=k;api('/api/nowcast').then(d=>{NC=d&&d.forecast?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else NC=null;
+if(S.show_uv){if(Date.now()-uvt>18e5){uvt=Date.now();api('/api/uv').then(d=>{UV=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else UV=null;
 initLS();draw();music()}
 function show(k){if(!P.length)return;clearV();i=((k%O.length)+O.length)%O.length;const p=P[O[i]];if(p.kind=='video')return playV(p);$('vd').classList.remove('on');const el=$(cur?'a':'b'),old=$(cur?'b':'a');
 el.style.objectFit=old.style.objectFit=S.fit;el.onload=()=>{el.classList.add('on');old.classList.remove('on');cur^=1;now=p;draw()};el.src='/api/photo/'+p.id}
@@ -56,7 +59,7 @@ function slp(){if(!S.sleep_on||S.sleep_start==S.sleep_end)return false;let tz=S.
 const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()),g=t=>+p.find(x=>x.type==t).value,m=g('hour')*60+g('minute'),a=S.sleep_start.split(':'),b=S.sleep_end.split(':'),s=+a[0]*60+ +a[1],e=+b[0]*60+ +b[1];
 return s<e?(m>=s&&m<e):(m>=s||m<e)}
 function draw(){const o=$('ov'),sl=slp();const sb=sl?(S.sleep_level??5)/100:(S.light_sensor&&lux!=null?Math.min(1,Math.max((S.light_min??25)/100,Math.log10(lux+1)/Math.log10(251))):1);$('dim').style.opacity=1-sb;
-const mo=sl&&S.sleep_music_off;if(mo!==musicOff){musicOff=mo;if(mo)au.pause();else if(S.music&&!muted&&TR.length)au.src?au.play().catch(()=>{}):playNext()}o.style.setProperty('--o',S.opacity);
+const mo=sl&&S.sleep_music_off;if(mo!==musicOff){musicOff=mo;if(mo)au.pause();else if(S.music&&!muted&&TR.length)au.src?au.play().catch(()=>{}):playNext()}o.style.setProperty('--o',S.opacity);o.style.setProperty('--k',(S.overlay_scale??100)/100);
 if(!P.length){o.innerHTML='<div class="b bl"><div class=m>No photos to show'+(me=='admin'?' – <a href="/admin#photos" style="color:#8ab4ff">add some</a>':'')+'</div></div>';return}
 if(!S.overlay){o.innerHTML='';return}
 let tz=S.tz;try{new Intl.DateTimeFormat(0,{timeZone:tz})}catch{tz=undefined}
@@ -66,14 +69,16 @@ if(S.show_date)F.date=`<div class=m>${f({weekday:'long',day:'numeric',month:'lon
 const W=Date.now()-wok<72e5?Wx:null; // hide stale weather after 2h offline
 if(S.show_temp&&W)F.temp=`<div class=t>${W.t}°${S.units}</div>`;
 if(S.show_weather&&W&&W.c)F.w=`<div class=m>${W.c}</div>`;
-if(S.show_psi&&PS&&Date.now()-PS.got<144e5)F.psi=`<div class=m><span class=pd style="background:${PC[PS.band]}"></span>PSI ${PS.v} · ${PS.band}</div>`;
+if(S.show_nowcast&&NC&&Date.now()-NC.got<54e5)F.nc=`<div class=m>Next 2 h · ${esc(NC.area)}: ${esc(NC.forecast)}</div>`;
+if(S.show_uv&&UV&&!sl&&Date.now()-UV.got<108e5)F.uv=`<div class=m><span class=pd style="background:${UC[UV.band]}"></span>UV ${UV.v} · ${UV.band}</div>`;
+if(S.show_psi&&PS&&!sl&&Date.now()-PS.got<144e5)F.psi=`<div class=m><span class=pd style="background:${PC[PS.band]}"></span>PSI ${PS.v} · ${PS.band}</div>`;
 if(S.show_meta&&now){if(now.caption)F.cap=`<div class=m>${esc(now.caption)}</div>`;
 const t=now.taken_at&&new Date(now.taken_at);if(t&&!isNaN(t))F.tk=`<div class=m>Taken ${t.toLocaleDateString(undefined,{dateStyle:'medium'})}</div>`;
 F.n=`<div class=m>${now.kind=='video'?'Video':'Photo'} ${i+1} of ${P.length}</div>`}
 if(sl){const wl=[S.show_weather&&W&&W.c,S.show_temp&&W&&W.t+'°'+S.units].filter(Boolean).join(' · ');
 const tm=W&&W.tm&&(S.show_weather||S.show_temp)?`<div class=tm>Tomorrow: ${S.show_weather?W.tm.c+' ':''}${S.show_temp?W.tm.lo+'°/'+W.tm.hi+'°'+S.units:''}${S.show_weather&&W.tm.p!=null?' · '+W.tm.p+'% rain':''}</div>`:'';
-o.innerHTML=`<div class="b c">${F.time||''}${F.date||''}${wl?`<div class=m style="margin-top:1vmin">${wl}</div>`:''}${F.psi||''}${tm}</div>`;return}
-const G=S.position=='split'?{tl:['time','date'],tr:['temp','w','psi'],bl:['cap'],br:['tk','n']}:{[S.position]:['time','date','temp','w','psi','cap','tk','n']};
+o.innerHTML=`<div class="b c">${F.time||''}${F.date||''}${wl?`<div class=m style="margin-top:1vmin">${wl}</div>`:''}${F.nc||''}${tm}</div>`;return}
+const G=S.position=='split'?{tl:['time','date'],tr:['temp','w','nc'],bl:['uv','psi','cap'],br:['tk','n']}:{[S.position]:['time','date','temp','w','nc','uv','psi','cap','tk','n']};
 o.innerHTML=Object.entries(G).map(([c,ks])=>{const h=ks.map(k=>F[k]||'').join('');return h?`<div class="b ${c}">${h}</div>`:''}).join('')}
 // ---- video slides: play to the end (or max seconds), then move on; skip if it stalls or fails
 function clearV(){vidActive=false;vT.forEach(clearTimeout);vT=[];const v=$('vd');v.onended=v.onerror=v.oncanplay=null;v.pause();

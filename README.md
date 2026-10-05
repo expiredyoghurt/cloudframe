@@ -1,4 +1,4 @@
-# CloudFrame v1.3
+# CloudFrame v1.4
 A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + D1 + R2). Home/family use, protected by a username, password and 8-digit PIN.
 
 ## Features
@@ -6,7 +6,9 @@ A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + 
 - **Sleep mode:** during sleep hours (default 8pm-6am, set under Display; uses the Display timezone) the photos dim to 5% brightness (adjustable) and the overlay becomes a large centred clock with the time, day, date, weather, temperature and tomorrow's forecast. Works on the standard and lite frames.
 - **Music off at night:** a Sleep mode toggle (on by default) pauses the music during sleep hours and resumes it afterwards.
 - **Auto brightness (optional):** where a browser exposes an ambient light sensor (some Android/Chromium devices; not iPads or most laptops), the frame dims the photos in software to match the room, never below the minimum you set. The frame's control bar shows whether a sensor was found.
-- **PSI (optional):** shows NEA's official 24-hour PSI (the readings published on haze.gov.sg) for the whole of Singapore or one region, with its band colour. The Worker reads it from data.gov.sg and caches it for 15 minutes. If you hit rate limits, add an optional `DATA_GOV_SG_API_KEY` secret.
+- **Nowcast and UV (optional):** the NEA 2-hour nowcast for the forecast area nearest your weather location (or an area you pick), and the current UV index with NEA's bands. Both refresh every 30 minutes. UV shows in daylight hours only.
+- **Text size:** Display > Overlay > Text size scales all the overlay text (60-180%), on both frames and in the preview.
+- **PSI (optional):** shows (in daylight hours only, refreshed hourly) NEA's official 24-hour PSI (the readings published on haze.gov.sg) for the whole of Singapore or one region, with its band colour. The Worker reads it from data.gov.sg and caches it for 15 minutes. If you hit rate limits, add an optional `DATA_GOV_SG_API_KEY` secret.
 - **Overlay:** translucent rounded box with date, time, weather, temperature and photo info; on/off, one corner or split across all four corners, adjustable opacity.
 - **Photos and albums:** upload (photos over 4 megapixels are shrunk in the browser, smaller ones untouched), thumbnails, captions, bulk move/delete, choose which albums are shown.
 - **Upload buttons:** the Media tab has clear Upload photos and Upload videos buttons (plus drag-and-drop), and the Overview has an Upload videos shortcut.

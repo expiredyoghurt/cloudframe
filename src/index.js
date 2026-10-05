@@ -36,6 +36,45 @@ async function psiFor(S, env) {
   if (typeof val !== 'number') return null;
   return { v: val, band: PSI_BANDS.find(b => val <= b[0])[1], region: S.psi_region, at: v.at };
 }
+// ---- NEA 2-hour nowcast and UV index (official data via data.gov.sg), cached about 10 minutes
+const NEA = 'https://api-open.data.gov.sg/v2/real-time/api/';
+const neaGet = async (env, path) => {
+  const r = await fetch(NEA + path, env.DATA_GOV_SG_API_KEY ? { headers: { 'x-api-key': env.DATA_GOV_SG_API_KEY } } : {});
+  if (!r.ok) throw new Error('NEA ' + r.status);
+  return (await r.json()).data;
+};
+let NCC = { t: 0, d: null }, UVC = { t: 0, d: null };
+async function nowcastData(env) {
+  if (Date.now() - NCC.t > 10 * 6e4) {
+    try { const d = await neaGet(env, 'two-hr-forecast'), it = d.items[0]; NCC = { t: Date.now(), d: { meta: d.area_metadata, fc: it.forecasts, vp: it.valid_period } }; }
+    catch { NCC.t = Date.now() - 5 * 6e4; } // retry in ~5 minutes, keep the last good data
+  }
+  return NCC.d;
+}
+async function nowcastFor(S, env) {
+  const d = await nowcastData(env);
+  if (!d || Date.now() - new Date(d.vp.end) > 30 * 6e4) return null;
+  let area = S.nowcast_area && (d.fc.find(f => f.area.toLowerCase() === String(S.nowcast_area).trim().toLowerCase()) || {}).area;
+  if (!area && S.lat !== '' && S.lon !== '') { // otherwise the forecast area nearest the weather location
+    let best = 1e9;
+    for (const a of d.meta) { const dd = (a.label_location.latitude - +S.lat) ** 2 + (a.label_location.longitude - +S.lon) ** 2; if (dd < best) { best = dd; area = a.name; } }
+  }
+  const f = area && d.fc.find(x => x.area === area);
+  return f ? { area, forecast: f.forecast.replace(/\s*\((Day|Night)\)\s*/i, ''), until: (d.vp.text || '').split(' to ')[1] || '' } : null;
+}
+const uvBand = v => v <= 2 ? 'Low' : v <= 5 ? 'Moderate' : v <= 7 ? 'High' : v <= 10 ? 'Very high' : 'Extreme';
+async function uvFor(env) {
+  if (Date.now() - UVC.t > 10 * 6e4) {
+    try {
+      const d = await neaGet(env, 'uv'), idx = ((d.records || [])[0] || {}).index || [];
+      const last = idx.slice().sort((a, b) => new Date(b.hour) - new Date(a.hour))[0];
+      UVC = { t: Date.now(), d: last ? { v: last.value, hour: last.hour } : null };
+    } catch { UVC.t = Date.now() - 5 * 6e4; }
+  }
+  const d = UVC.d;
+  if (!d || Date.now() - new Date(d.hour) > 3 * 36e5) return null; // readings run 7am-7pm
+  return { v: d.v, band: uvBand(d.v), hour: d.hour };
+}
 function tzOffset(tz) { // minutes east of UTC, so the lite page can show the right local time without Intl
   try {
     const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date());
@@ -55,7 +94,7 @@ const H = {
   'Content-Security-Policy': "default-src 'self'; media-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-ancestors 'none'",
 };
 const D = { overlay: true, position: 'bl', opacity: 0.35, units: 'C', h24: true, show_time: true, show_date: true,
-  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false, sleep_on: true, sleep_start: '20:00', sleep_end: '06:00', sleep_level: 5, show_psi: false, psi_region: 'national', sleep_music_off: true, light_sensor: false, light_min: 25 };
+  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false, sleep_on: true, sleep_start: '20:00', sleep_end: '06:00', sleep_level: 5, show_psi: true, psi_region: 'national', sleep_music_off: true, light_sensor: false, light_min: 25, show_nowcast: true, nowcast_area: '', show_uv: true, overlay_scale: 100 };
 const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'], psi_region: ['national', 'north', 'south', 'east', 'west', 'central'] };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json', ...h } });
 const hmac = async (k, m) => new Uint8Array(await crypto.subtle.sign('HMAC',
@@ -122,8 +161,8 @@ async function route(req, env) {
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
-  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.3' });
-  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.4' });
+  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/api/nowcast' || p === '/api/uv' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
   if (sc === 'f' && !viewOk && p !== '/api/logout')
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
 
@@ -149,6 +188,7 @@ async function route(req, env) {
     cur.video_max = Math.min(300, Math.max(0, cur.video_max));
     cur.sleep_level = Math.min(50, Math.max(0, cur.sleep_level));
     cur.light_min = Math.min(100, Math.max(5, cur.light_min));
+    cur.overlay_scale = Math.min(180, Math.max(60, cur.overlay_scale));
     for (const k of ['sleep_start', 'sleep_end']) if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(cur[k])) cur[k] = D[k];
     await env.DB.prepare("INSERT INTO settings(key,value) VALUES('config',?1) ON CONFLICT(key) DO UPDATE SET value=?1").bind(JSON.stringify(cur)).run();
     return json(cur);
@@ -224,6 +264,9 @@ async function route(req, env) {
     }
     h['Content-Length'] = String(o.size); return new Response(o.body, { headers: h });
   }
+  if (p === '/api/nowcast/areas' && m === 'GET') return json(((await nowcastData(env)) || { meta: [] }).meta.map(a => a.name));
+  if (p === '/api/nowcast' && m === 'GET') return json(await nowcastFor(await getSettings(env), env));
+  if (p === '/api/uv' && m === 'GET') return json(await uvFor(env));
   if (p === '/api/psi' && m === 'GET') return json(await psiFor(await getSettings(env), env));
   if (p === '/api/lite' && m === 'GET') { // everything the lite frame needs in one small response
     const S = await getSettings(env), hid = S.hide_albums || [];
@@ -231,7 +274,8 @@ async function route(req, env) {
       .filter(r => !hid.includes(r.album_id || 'none') && (r.kind === 'video' ? (S.lite_videos && S.content !== 'photos') : S.content !== 'videos'))
       .map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at, kind: r.kind, duration: r.duration }));
     const { hide_albums, music, music_volume, music_shuffle, lat, lon, tz, ...pub } = S;
-    return json({ s: pub, p: rows, w: await weatherFor(S), psi: S.show_psi ? await psiFor(S, env) : null, off: tzOffset(S.tz) });
+    const [w, psi, nc, uv] = await Promise.all([weatherFor(S), S.show_psi ? psiFor(S, env) : null, S.show_nowcast ? nowcastFor(S, env) : null, S.show_uv ? uvFor(env) : null]);
+    return json({ s: pub, p: rows, w, psi, nc, uv, off: tzOffset(S.tz) });
   }
   if (p === '/api/stats' && m === 'GET') {
     const s = await env.DB.prepare("SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes, COALESCE(SUM(kind='video'),0) videos FROM photos").first();
