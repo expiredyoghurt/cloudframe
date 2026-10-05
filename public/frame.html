@@ -17,9 +17,9 @@ body.ui #cb{opacity:1;pointer-events:auto}
 .c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:3.6vmin;opacity:.92}.pd{display:inline-block;width:.7em;height:.7em;border-radius:50%;margin-right:.4em}
 </style></head><body>
 <img class=s id=a alt=""><img class=s id=b alt=""><video class=s id=vd playsinline muted preload=auto></video><div id=dim></div><div id=ov></div>
-<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
+<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><span id=lx hidden></span><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
 <script>
-let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='';
+let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='',musicOff=false,lux=null,ls=null,lsTried=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const PC={Good:'#4cc38a',Moderate:'#4da3ff',Unhealthy:'#f5d33f','Very unhealthy':'#f59e42',Hazardous:'#ef5350'};
@@ -39,16 +39,24 @@ if(p.length!=P.length||p.some((x,k)=>x.id!=P[k].id)){P=p;O=[...P.keys()];if(S.or
 if(P.length)show(0);else{$('a').classList.remove('on');$('b').classList.remove('on');now=null}}
 const k=S.lat+S.lon+S.units;if(k!=wk||Date.now()-wt>9e5){wk=k;wt=Date.now();weather()}
 if(S.show_psi){if(Date.now()-pt>9e5||pk!=S.psi_region){pt=Date.now();pk=S.psi_region;api('/api/psi').then(d=>{PS=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else PS=null;
-draw();music()}
+initLS();draw();music()}
 function show(k){if(!P.length)return;clearV();i=((k%O.length)+O.length)%O.length;const p=P[O[i]];if(p.kind=='video')return playV(p);$('vd').classList.remove('on');const el=$(cur?'a':'b'),old=$(cur?'b':'a');
 el.style.objectFit=old.style.objectFit=S.fit;el.onload=()=>{el.classList.add('on');old.classList.remove('on');cur^=1;now=p;draw()};el.src='/api/photo/'+p.id}
 const next=()=>show(i+1);
 function loop(){clearTimeout(T);T=setTimeout(()=>{if(!paused&&!vidActive)next();loop()},(S.interval||15)*1e3)}
+// optional: dim the screen in software using the device's ambient light sensor (only some Chromium/Android devices expose one)
+function initLS(){const lx=$('lx');
+if(!S.light_sensor){if(ls){try{ls.stop()}catch(e){}ls=null}lux=null;lsTried=false;lx.hidden=true;return}
+if(lsTried)return;lsTried=true;lx.hidden=false;
+if(!('AmbientLightSensor' in window)){lx.textContent='No light sensor';return}
+try{ls=new AmbientLightSensor({frequency:1});ls.onreading=()=>{lux=ls.illuminance;lx.textContent='☀ '+Math.round(lux)+' lx';draw()};
+ls.onerror=()=>{lx.textContent='Light sensor unavailable';lux=null;draw()};ls.start()}catch(e){lx.textContent='Light sensor unavailable'}}
 // sleep hours: dim the photos and show a large clock (uses the timezone from Display settings)
 function slp(){if(!S.sleep_on||S.sleep_start==S.sleep_end)return false;let tz=S.tz;try{new Intl.DateTimeFormat(0,{timeZone:tz})}catch{tz=undefined}
 const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()),g=t=>+p.find(x=>x.type==t).value,m=g('hour')*60+g('minute'),a=S.sleep_start.split(':'),b=S.sleep_end.split(':'),s=+a[0]*60+ +a[1],e=+b[0]*60+ +b[1];
 return s<e?(m>=s&&m<e):(m>=s||m<e)}
-function draw(){const o=$('ov'),sl=slp();$('dim').style.opacity=sl?1-(S.sleep_level??5)/100:0;o.style.setProperty('--o',S.opacity);
+function draw(){const o=$('ov'),sl=slp();const sb=sl?(S.sleep_level??5)/100:(S.light_sensor&&lux!=null?Math.min(1,Math.max((S.light_min??25)/100,Math.log10(lux+1)/Math.log10(251))):1);$('dim').style.opacity=1-sb;
+const mo=sl&&S.sleep_music_off;if(mo!==musicOff){musicOff=mo;if(mo)au.pause();else if(S.music&&!muted&&TR.length)au.src?au.play().catch(()=>{}):playNext()}o.style.setProperty('--o',S.opacity);
 if(!P.length){o.innerHTML='<div class="b bl"><div class=m>No photos to show'+(me=='admin'?' – <a href="/admin#photos" style="color:#8ab4ff">add some</a>':'')+'</div></div>';return}
 if(!S.overlay){o.innerHTML='';return}
 let tz=S.tz;try{new Intl.DateTimeFormat(0,{timeZone:tz})}catch{tz=undefined}
@@ -69,7 +77,7 @@ const G=S.position=='split'?{tl:['time','date'],tr:['temp','w','psi'],bl:['cap']
 o.innerHTML=Object.entries(G).map(([c,ks])=>{const h=ks.map(k=>F[k]||'').join('');return h?`<div class="b ${c}">${h}</div>`:''}).join('')}
 // ---- video slides: play to the end (or max seconds), then move on; skip if it stalls or fails
 function clearV(){vidActive=false;vT.forEach(clearTimeout);vT=[];const v=$('vd');v.onended=v.onerror=v.oncanplay=null;v.pause();
-if(mPaused){mPaused=false;if(!muted)au.play().catch(()=>{})}}
+if(mPaused){mPaused=false;if(!muted&&!musicOff)au.play().catch(()=>{})}}
 function skipV(){if(!vidActive)return;next();loop()}
 function playV(p){const v=$('vd');vidActive=true;now=p;v.style.objectFit=S.fit;v.muted=!S.video_sound;
 if(S.video_sound&&S.music&&!au.paused){au.pause();mPaused=true}
@@ -104,10 +112,10 @@ async function music(){au.volume=localStorage.vol!=null?+localStorage.vol:(S.mus
 if(!S.music){au.pause();return}
 let t=[];try{t=(await api('/api/music')).map(x=>x.name)}catch{return}
 if(t.slice().sort().join('|')!=[...TR].sort().join('|')){TR=t;if(S.music_shuffle)TR.sort(()=>Math.random()-.5);ti=-1;au.pause();au.removeAttribute('src')}
-if(TR.length&&au.paused&&!muted)au.src?au.play().catch(()=>{}):playNext()}
-function playNext(){if(!TR.length||muted)return;ti=(ti+1)%TR.length;au.src='/api/music/'+encodeURIComponent(TR[ti]);au.play().catch(()=>{})}
+if(TR.length&&au.paused&&!muted&&!musicOff)au.src?au.play().catch(()=>{}):playNext()}
+function playNext(){if(!TR.length||muted||musicOff)return;ti=(ti+1)%TR.length;au.src='/api/music/'+encodeURIComponent(TR[ti]);au.play().catch(()=>{})}
 au.onended=playNext;au.onplaying=()=>{errs=0;$('mt').textContent=(TR[ti]||'').replace(/\.[^.]+$/,'')};au.onerror=()=>{if(++errs<=TR.length)setTimeout(playNext,1500)};
-const unlock=()=>{if(S.music&&au.paused&&!muted&&TR.length)au.src?au.play().catch(()=>{}):playNext()};
+const unlock=()=>{if(S.music&&au.paused&&!muted&&!musicOff&&TR.length)au.src?au.play().catch(()=>{}):playNext()};
 ['pointerdown','keydown','touchend'].forEach(e=>addEventListener(e,unlock));
 $('mu').textContent=muted?'🔇':'🔊';
 $('mu').onclick=()=>{muted=!muted;localStorage.mute=muted?'1':'0';$('mu').textContent=muted?'🔇':'🔊';muted?au.pause():unlock()};
