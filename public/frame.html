@@ -13,10 +13,10 @@ body.ui #cb{opacity:1;pointer-events:auto}
 #cb>*,#mg>*{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer}
 #mg{display:contents}#mg[hidden]{display:none}#mv{width:90px;padding:0;min-height:0;vertical-align:middle}#mt{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
 </style></head><body>
-<img class=s id=a alt=""><img class=s id=b alt=""><div id=ov></div>
-<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
+<img class=s id=a alt=""><img class=s id=b alt=""><video class=s id=vd playsinline muted preload=auto></video><div id=ov></div>
+<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
 <script>
-let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0;
+let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const WM={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Drizzle',53:'Drizzle',55:'Drizzle',61:'Rain',63:'Rain',65:'Heavy rain',71:'Snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
@@ -29,15 +29,15 @@ const AL=[...al.albums,{id:'none',name:'Unsorted'}].filter(a=>!hid.includes(a.id
 if(fl!='all'&&!AL.some(a=>a.id==fl))fl='all';
 const h='<option value=all>All albums</option>'+AL.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
 if(fa.innerHTML!=h)fa.innerHTML=h;fa.value=localStorage.fa=fl;
-const all=await api('/api/photos');syncSW(all.filter(x=>!hid.includes(x.album_id||'none')).map(x=>x.id));
-const p=all.filter(x=>{const k=x.album_id||'none';return !hid.includes(k)&&(fl=='all'||k==fl)});
+const ct=localStorage.ct||S.content,all=await api('/api/photos');syncSW(all.filter(x=>x.kind!='video'&&!hid.includes(x.album_id||'none')).map(x=>x.id));
+const p=all.filter(x=>{const k=x.album_id||'none';return !hid.includes(k)&&(fl=='all'||k==fl)&&(ct=='all'||(ct=='photos')==(x.kind!='video'))});
 if(p.length!=P.length||p.some((x,k)=>x.id!=P[k].id)){P=p;O=[...P.keys()];if(S.order=='shuffle')O.sort(()=>Math.random()-.5);i=-1;
 if(P.length)show(0);else{$('a').classList.remove('on');$('b').classList.remove('on');now=null}}
 const k=S.lat+S.lon+S.units;if(k!=wk||Date.now()-wt>9e5){wk=k;wt=Date.now();weather()}draw();music()}
-function show(k){if(!P.length)return;i=((k%O.length)+O.length)%O.length;const p=P[O[i]],el=$(cur?'a':'b'),old=$(cur?'b':'a');
+function show(k){if(!P.length)return;clearV();i=((k%O.length)+O.length)%O.length;const p=P[O[i]];if(p.kind=='video')return playV(p);$('vd').classList.remove('on');const el=$(cur?'a':'b'),old=$(cur?'b':'a');
 el.style.objectFit=old.style.objectFit=S.fit;el.onload=()=>{el.classList.add('on');old.classList.remove('on');cur^=1;now=p;draw()};el.src='/api/photo/'+p.id}
 const next=()=>show(i+1);
-function loop(){clearTimeout(T);T=setTimeout(()=>{if(!paused)next();loop()},(S.interval||15)*1e3)}
+function loop(){clearTimeout(T);T=setTimeout(()=>{if(!paused&&!vidActive)next();loop()},(S.interval||15)*1e3)}
 function draw(){const o=$('ov');o.style.setProperty('--o',S.opacity);
 if(!P.length){o.innerHTML='<div class="b bl"><div class=m>No photos to show'+(me=='admin'?' – <a href="/admin#photos" style="color:#8ab4ff">add some</a>':'')+'</div></div>';return}
 if(!S.overlay){o.innerHTML='';return}
@@ -50,9 +50,20 @@ if(S.show_temp&&W)F.temp=`<div class=t>${W.t}°${S.units}</div>`;
 if(S.show_weather&&W&&W.c)F.w=`<div class=m>${W.c}</div>`;
 if(S.show_meta&&now){if(now.caption)F.cap=`<div class=m>${esc(now.caption)}</div>`;
 const t=now.taken_at&&new Date(now.taken_at);if(t&&!isNaN(t))F.tk=`<div class=m>Taken ${t.toLocaleDateString(undefined,{dateStyle:'medium'})}</div>`;
-F.n=`<div class=m>Photo ${i+1} of ${P.length}</div>`}
+F.n=`<div class=m>${now.kind=='video'?'Video':'Photo'} ${i+1} of ${P.length}</div>`}
 const G=S.position=='split'?{tl:['time','date'],tr:['temp','w'],bl:['cap'],br:['tk','n']}:{[S.position]:['time','date','temp','w','cap','tk','n']};
 o.innerHTML=Object.entries(G).map(([c,ks])=>{const h=ks.map(k=>F[k]||'').join('');return h?`<div class="b ${c}">${h}</div>`:''}).join('')}
+// ---- video slides: play to the end (or max seconds), then move on; skip if it stalls or fails
+function clearV(){vidActive=false;vT.forEach(clearTimeout);vT=[];const v=$('vd');v.onended=v.onerror=v.oncanplay=null;v.pause();
+if(mPaused){mPaused=false;if(!muted)au.play().catch(()=>{})}}
+function skipV(){if(!vidActive)return;next();loop()}
+function playV(p){const v=$('vd');vidActive=true;now=p;v.style.objectFit=S.fit;v.muted=!S.video_sound;
+if(S.video_sound&&S.music&&!au.paused){au.pause();mPaused=true}
+v.src='/api/video/'+p.id;
+v.oncanplay=()=>{v.oncanplay=null;if(!vidActive)return;$('a').classList.remove('on');$('b').classList.remove('on');v.classList.add('on');draw();
+if(paused)return;const pr=v.play();pr&&pr.catch&&pr.catch(()=>{v.muted=true;v.play().catch(skipV)})};
+v.onended=skipV;v.onerror=skipV;
+vT=[setTimeout(()=>{if(vidActive&&v.currentTime<.1&&!paused)skipV()},9000),setTimeout(skipV,(S.video_max>0&&S.video_max<p.duration?S.video_max+2:p.duration+10)*1e3)]}
 // controls
 const showUI=()=>{document.body.classList.add('ui');clearTimeout(ut);ut=setTimeout(()=>document.body.classList.remove('ui'),3e3)};
 ['pointermove','pointerdown'].forEach(e=>addEventListener(e,showUI));
@@ -61,9 +72,10 @@ const fsT=()=>{if(!fsCan)return alert('Fullscreen is not available in this brows
 if(fsOn())(document.exitFullscreen||document.webkitExitFullscreen).call(document);else{const p=(de.requestFullscreen||de.webkitRequestFullscreen).call(de);p&&p.catch&&p.catch(()=>{})}};
 ['fullscreenchange','webkitfullscreenchange'].forEach(e=>document.addEventListener(e,()=>$('fs').textContent=fsOn()?'✕':'⛶'));
 addEventListener('dblclick',e=>{if(!e.target.closest('#cb'))fsT()});
-const pp=()=>{paused=!paused;$('pp').textContent=paused?'▶':'❚❚'};
+const pp=()=>{paused=!paused;$('pp').textContent=paused?'▶':'❚❚';if(vidActive){paused?$('vd').pause():$('vd').play().catch(()=>{})}};
 $('nx').onclick=()=>{next();loop()};$('pv').onclick=()=>{show(i-1);loop()};$('pp').onclick=pp;$('fs').onclick=fsT;
 $('fa').onchange=()=>{localStorage.fa=$('fa').value;load()};
+$('ct').value=localStorage.ct||'';$('ct').onchange=()=>{localStorage.ct=$('ct').value;load()};
 $('lo').onclick=async()=>{await fetch('/api/logout').catch(()=>{});await Promise.all((await caches.keys()).map(k=>caches.delete(k)));location='/login'};
 addEventListener('keydown',e=>{showUI();if(e.key=='f')fsT();if(e.key=='ArrowRight'){next();loop()}if(e.key=='ArrowLeft'){show(i-1);loop()}if(e.key==' ')pp()});
 let sx=0;addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});

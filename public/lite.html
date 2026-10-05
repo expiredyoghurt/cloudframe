@@ -12,7 +12,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Helve
 #cb button,#cb a{display:inline-block;margin:0 3px;padding:9px 14px;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:#fff;font:16px Helvetica,Arial,sans-serif;text-decoration:none}
 #hint{display:none;position:fixed;left:20px;right:20px;bottom:90px;padding:12px 16px;border-radius:12px;background:rgba(0,0,0,.75);color:#fff;font:16px Helvetica,Arial,sans-serif;text-align:center;z-index:10}
 </style></head><body>
-<div class=s id=a></div><div class=s id=b></div><div id=ov></div>
+<div class=s id=a></div><div class=s id=b></div><video class=s id=vd playsinline muted></video><div id=ov></div>
 <div id=cb><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><button id=fs>Fullscreen</button><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div>
 <div id=hint>Fullscreen is not available in this browser. Tap Share, then Add to Home Screen, and open CloudFrame Lite from your Home Screen for a full-screen view.</div>
 <script>
@@ -32,8 +32,8 @@ if(k!==sig){sig=k;P=d.p;O=[];for(var n=0;n<P.length;n++)O.push(n);
 if(S.order==='shuffle')for(var j=O.length-1;j>0;j--){var r=Math.floor(Math.random()*(j+1)),t=O[j];O[j]=O[r];O[r]=t}
 i=-1;if(P.length)show(0);else{$('a').className='s';$('b').className='s';now=null}}
 draw();if(!started){started=true;loop()}})}
-function show(k){if(!P.length)return;var L=O.length;i=((k%L)+L)%L;
-var p=P[O[i]],el=$(cur?'a':'b'),old=$(cur?'b':'a'),my=++tok,im=new Image();
+function show(k){if(!P.length)return;clearV();var L=O.length;i=((k%L)+L)%L;
+var p=P[O[i]];if(p.kind==='video'){tok++;return playV(p)}$('vd').className='s';var el=$(cur?'a':'b'),old=$(cur?'b':'a'),my=++tok,im=new Image();
 im.onload=function(){if(my!==tok)return;
 el.style.backgroundImage='url(/api/photo/'+p.id+')';el.style.backgroundSize=S.fit==='contain'?'contain':'cover';
 el.className='s on';old.className='s';cur=cur?0:1;now=p;draw()};
@@ -47,13 +47,20 @@ if(S.show_date)F.date='<div class=m>'+DN[d.getUTCDay()]+', '+d.getUTCDate()+' '+
 if(W){if(S.show_temp)F.temp='<div class=t>'+W.t+'&deg;'+S.units+'</div>';if(S.show_weather&&W.c)F.w='<div class=m>'+W.c+'</div>'}
 if(S.show_meta&&now){if(now.caption)F.cap='<div class=m>'+esc(now.caption)+'</div>';
 if(now.taken_at){var t=now.taken_at.split('-');if(t.length===3)F.tk='<div class=m>Taken '+(+t[2])+' '+MN[t[1]-1]+' '+t[0]+'</div>'}
-F.n='<div class=m>Photo '+(i+1)+' of '+P.length+'</div>'}
+F.n='<div class=m>'+(now.kind==='video'?'Video ':'Photo ')+(i+1)+' of '+P.length+'</div>'}
 var G={};if(S.position==='split'){G={tl:['time','date'],tr:['temp','w'],bl:['cap'],br:['tk','n']}}
 else G[S.position]=['time','date','temp','w','cap','tk','n'];
 var bg='background:rgba(0,0,0,'+S.opacity+')',out='';
 for(var c in G){var s='',ks=G[c];for(var n=0;n<ks.length;n++)s+=F[ks[n]]||'';if(s)out+='<div class="b '+c+'" style="'+bg+'">'+s+'</div>'}
 o.innerHTML=out}
-function loop(){clearTimeout(T);T=setTimeout(function(){if(!paused)show(i+1);loop()},(S.interval||15)*1000)}
+var vidA=false,vT=[];
+function clearV(){vidA=false;for(var n=0;n<vT.length;n++)clearTimeout(vT[n]);vT=[];var v=$('vd');v.onended=v.onerror=v.oncanplay=null;try{v.pause()}catch(e){}}
+function skipV(){if(!vidA)return;show(i+1);loop()}
+function playV(p){var v=$('vd');vidA=true;now=p;v.muted=true;v.src='/api/video/'+p.id;
+v.oncanplay=function(){v.oncanplay=null;if(!vidA)return;$('a').className='s';$('b').className='s';v.className='s on';draw();var r=v.play();if(r&&r.catch)r.catch(skipV)};
+v.onended=skipV;v.onerror=skipV;
+vT=[setTimeout(function(){if(vidA&&v.currentTime<.1)skipV()},9000),setTimeout(skipV,(S.video_max>0&&S.video_max<p.duration?S.video_max+2:p.duration+10)*1000)];v.load()}
+function loop(){clearTimeout(T);T=setTimeout(function(){if(!paused&&!vidA)show(i+1);loop()},(S.interval||15)*1000)}
 function ui(){$('cb').style.display='block';clearTimeout(UT);UT=setTimeout(function(){$('cb').style.display='none'},4000)}
 document.onclick=function(e){var id=e.target.id;
 if(id==='nx'){show(i+1);loop();ui()}else if(id==='pv'){show(i-1);loop();ui()}
