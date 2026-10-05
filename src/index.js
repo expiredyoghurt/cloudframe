@@ -8,10 +8,33 @@ async function weatherFor(S) {
   const k = S.lat + ',' + S.lon + S.units;
   if (WX.k === k && Date.now() - WX.t < 6e5) return WX.v;
   try {
-    const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&temperature_unit=${S.units === 'F' ? 'fahrenheit' : 'celsius'}`)).json();
-    WX = { k, t: Date.now(), v: { t: Math.round(r.current.temperature_2m), c: WMO[r.current.weather_code] || '' } };
+    const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=2&timezone=auto&temperature_unit=${S.units === 'F' ? 'fahrenheit' : 'celsius'}`)).json();
+    WX = { k, t: Date.now(), v: { t: Math.round(r.current.temperature_2m), c: WMO[r.current.weather_code] || '', tm: r.daily && r.daily.time && r.daily.time.length > 1 ? { c: WMO[r.daily.weather_code[1]] || '', hi: Math.round(r.daily.temperature_2m_max[1]), lo: Math.round(r.daily.temperature_2m_min[1]), p: r.daily.precipitation_probability_max ? r.daily.precipitation_probability_max[1] : null } : null } };
   } catch { if (WX.k !== k) return null; }
   return WX.v;
+}
+// Official NEA 24-hour PSI (the readings shown on haze.gov.sg), read from data.gov.sg and cached
+const PSI_BANDS = [[50, 'Good'], [100, 'Moderate'], [200, 'Unhealthy'], [300, 'Very unhealthy'], [Infinity, 'Hazardous']];
+let PSIC = { t: 0, v: null };
+async function psiFor(S, env) {
+  if (Date.now() - PSIC.t > 15 * 6e4) {
+    let ok = false;
+    for (const url of ['https://api-open.data.gov.sg/v2/real-time/api/psi', 'https://api.data.gov.sg/v1/environment/psi']) {
+      try {
+        const r = await fetch(url, env.DATA_GOV_SG_API_KEY ? { headers: { 'x-api-key': env.DATA_GOV_SG_API_KEY } } : {});
+        if (!r.ok) continue;
+        const j = await r.json(), d = j.data || j, it = (d.items || [])[0], rd = it && it.readings && it.readings.psi_twenty_four_hourly;
+        if (rd) { PSIC = { t: Date.now(), v: { rd, at: it.updatedTimestamp || it.update_timestamp || it.timestamp } }; ok = true; break; }
+      } catch {}
+    }
+    if (!ok) PSIC.t = Date.now() - 10 * 6e4; // retry in ~5 minutes, keep the last good reading
+  }
+  const v = PSIC.v;
+  if (!v || Date.now() - new Date(v.at) > 4 * 36e5) return null;
+  const vals = ['north', 'south', 'east', 'west', 'central'].map(k => v.rd[k]).filter(x => typeof x === 'number');
+  const val = S.psi_region === 'national' ? (typeof v.rd.national === 'number' ? v.rd.national : vals.length ? Math.max(...vals) : null) : v.rd[S.psi_region];
+  if (typeof val !== 'number') return null;
+  return { v: val, band: PSI_BANDS.find(b => val <= b[0])[1], region: S.psi_region, at: v.at };
 }
 function tzOffset(tz) { // minutes east of UTC, so the lite page can show the right local time without Intl
   try {
@@ -32,8 +55,8 @@ const H = {
   'Content-Security-Policy': "default-src 'self'; media-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-ancestors 'none'",
 };
 const D = { overlay: true, position: 'bl', opacity: 0.35, units: 'C', h24: true, show_time: true, show_date: true,
-  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false };
-const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'] };
+  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false, sleep_on: true, sleep_start: '20:00', sleep_end: '06:00', sleep_level: 5, show_psi: false, psi_region: 'national' };
+const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'], psi_region: ['national', 'north', 'south', 'east', 'west', 'central'] };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json', ...h } });
 const hmac = async (k, m) => new Uint8Array(await crypto.subtle.sign('HMAC',
   await crypto.subtle.importKey('raw', E.encode(k), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), E.encode(m)));
@@ -99,8 +122,8 @@ async function route(req, env) {
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
-  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.1' });
-  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.2' });
+  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
   if (sc === 'f' && !viewOk && p !== '/api/logout')
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
 
@@ -124,6 +147,8 @@ async function route(req, env) {
     cur.opacity = Math.min(0.9, Math.max(0.05, cur.opacity)); cur.interval = Math.min(3600, Math.max(3, cur.interval));
     cur.music_volume = Math.min(1, Math.max(0, cur.music_volume));
     cur.video_max = Math.min(300, Math.max(0, cur.video_max));
+    cur.sleep_level = Math.min(50, Math.max(0, cur.sleep_level));
+    for (const k of ['sleep_start', 'sleep_end']) if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(cur[k])) cur[k] = D[k];
     await env.DB.prepare("INSERT INTO settings(key,value) VALUES('config',?1) ON CONFLICT(key) DO UPDATE SET value=?1").bind(JSON.stringify(cur)).run();
     return json(cur);
   }
@@ -198,13 +223,14 @@ async function route(req, env) {
     }
     h['Content-Length'] = String(o.size); return new Response(o.body, { headers: h });
   }
+  if (p === '/api/psi' && m === 'GET') return json(await psiFor(await getSettings(env), env));
   if (p === '/api/lite' && m === 'GET') { // everything the lite frame needs in one small response
     const S = await getSettings(env), hid = S.hide_albums || [];
     const rows = (await env.DB.prepare('SELECT id,album_id,kind,duration,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
       .filter(r => !hid.includes(r.album_id || 'none') && (r.kind === 'video' ? (S.lite_videos && S.content !== 'photos') : S.content !== 'videos'))
       .map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at, kind: r.kind, duration: r.duration }));
     const { hide_albums, music, music_volume, music_shuffle, lat, lon, tz, ...pub } = S;
-    return json({ s: pub, p: rows, w: await weatherFor(S), off: tzOffset(S.tz) });
+    return json({ s: pub, p: rows, w: await weatherFor(S), psi: S.show_psi ? await psiFor(S, env) : null, off: tzOffset(S.tz) });
   }
   if (p === '/api/stats' && m === 'GET') {
     const s = await env.DB.prepare("SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes, COALESCE(SUM(kind='video'),0) videos FROM photos").first();
