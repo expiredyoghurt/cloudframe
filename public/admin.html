@@ -1,0 +1,201 @@
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>CloudFrame admin</title><script>document.documentElement.dataset.theme=localStorage.theme||''</script>
+<style>
+:root{--bg:#101216;--card:#1a1d23;--card2:#21252d;--line:#2f3540;--in:#262b34;--tx:#e8eaed;--mut:#9aa3b0;--ac:#4c7dff;--acs:#4c7dff22;--ok:#3ecf8e;color-scheme:dark}
+@media(prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f4f5f8;--card:#fff;--card2:#f0f2f6;--line:#dfe3ea;--in:#eef0f4;--tx:#1b1f27;--mut:#667085;--ac:#3b6ef5;--acs:#3b6ef51f;color-scheme:light}}
+:root[data-theme=light]{--bg:#f4f5f8;--card:#fff;--card2:#f0f2f6;--line:#dfe3ea;--in:#eef0f4;--tx:#1b1f27;--mut:#667085;--ac:#3b6ef5;--acs:#3b6ef51f;color-scheme:light}
+*{box-sizing:border-box}body{font:15px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--tx);margin:0}
+nav{position:fixed;z-index:20;left:0;top:0;bottom:0;width:208px;display:flex;flex-direction:column;gap:4px;background:var(--card);border-right:1px solid var(--line);padding:14px 10px}
+.brand{font-weight:700;font-size:16px;padding:6px 10px 14px}.brand small{color:var(--mut);font-weight:400}
+nav a,nav button{display:flex;align-items:center;gap:10px;width:100%;color:var(--mut);text-decoration:none;padding:9px 12px;border-radius:10px;border:0;background:none;font:inherit;cursor:pointer;text-align:left}
+nav a:hover,nav button:hover{background:var(--card2);color:var(--tx)}nav a.on{background:var(--acs);color:var(--ac);font-weight:600}
+nav i{font-style:normal;width:22px;text-align:center}.sp{flex:1}
+main{margin-left:208px;max-width:1100px;padding:24px 28px}.v{display:none}.v.on{display:block}
+h2{font-size:20px;margin:0 0 12px}h3{margin:0 0 10px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}.sub,small{color:var(--mut)}
+.panel,.card,figure,.row,.tile{background:var(--card);border:1px solid var(--line);border-radius:14px}.panel{padding:16px 18px}
+.pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-top:14px}
+input,select,button{background:var(--in);color:var(--tx);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font:inherit;min-height:36px}
+input:focus-visible,select:focus-visible,button:focus-visible,nav a:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+button{cursor:pointer}button:hover{filter:brightness(1.12)}.p{background:var(--ac);border-color:var(--ac);color:#fff}
+label{display:inline-flex;align-items:center;gap:8px;margin:5px 14px 5px 0}
+input[type=checkbox]{appearance:none;-webkit-appearance:none;width:38px;min-height:0;height:22px;padding:0;border-radius:12px;position:relative;cursor:pointer;flex:none}
+input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--mut);transition:.15s}
+input[type=checkbox]:checked{background:var(--ac);border-color:var(--ac)}input[type=checkbox]:checked::after{left:18px;background:#fff}
+input[type=range]{padding:0;min-height:0;accent-color:var(--ac)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}.tile{padding:14px 16px}.tile b{display:block;font-size:26px;margin-top:2px}.tile span{color:var(--mut);font-size:13px}
+.tip{display:block;padding:10px 12px;border-radius:10px;background:var(--acs);color:var(--ac);text-decoration:none;margin:6px 0}.ok{color:var(--ok);margin:4px 0}
+.strip{display:flex;gap:8px;overflow-x:auto}.strip img{height:84px;border-radius:9px;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.card,figure{padding:10px;margin:0;display:grid;gap:7px;align-content:start}
+.card input[data-ren],.card #an,figure input{width:100%}
+.cv,figure img{aspect-ratio:4/3;border-radius:9px;background:var(--card2);display:grid;place-items:center;overflow:hidden;width:100%}.cv img,figure img{width:100%;height:100%;object-fit:cover}
+figure{position:relative;cursor:pointer;border:2px solid var(--line)}figure.sel{border-color:var(--ac)}
+figure.sel::after{content:'✓';position:absolute;top:14px;left:14px;width:24px;height:24px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-size:14px}
+.zoom{position:absolute;top:14px;right:14px;min-height:0;padding:3px 9px;opacity:0;background:#000b;color:#fff;border:0}figure:hover .zoom,.zoom:focus{opacity:1}@media(hover:none){.zoom{opacity:1}}
+#dz,#sdz{border:2px dashed var(--line);border-radius:14px;padding:18px;text-align:center;margin:10px 0;cursor:pointer;background:var(--card)}#dz.hov,#sdz.hov{border-color:var(--ac);background:var(--acs)}
+#bar,#sbar{height:6px;background:var(--in);border-radius:4px;overflow:hidden;margin:6px 0;display:none}#bar i,#sbar i{display:block;height:100%;width:0;background:var(--ac)}
+#bb{position:sticky;top:12px;z-index:4;background:var(--card2);border:1px solid var(--ac);border-radius:12px;padding:8px 12px;margin:8px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}#bb[hidden]{display:none}
+#pv{position:relative;aspect-ratio:16/9;max-width:520px;background:linear-gradient(135deg,#3b6ef5,#7a4bd6 60%,#e0884a);border-radius:14px;overflow:hidden}
+.pb{position:absolute;margin:3%;padding:1.5% 2.5%;border-radius:10px;background:rgba(0,0,0,var(--o));color:#fff;font-size:11px;backdrop-filter:blur(4px)}
+.tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}.pt{font-size:20px}
+#crumb{margin:4px 0 10px}#crumb a,.row a{color:var(--ac);text-decoration:none}
+.row{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:8px 12px;margin:6px 0}.row span{overflow-wrap:anywhere}
+#ts{position:fixed;bottom:84px;left:50%;transform:translate(-50%,20px);background:var(--tx);color:var(--bg);padding:9px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:50}#ts.on{opacity:1;transform:translate(-50%,0)}
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:14px}dialog::backdrop{background:#000a}
+dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visible}#lbi{max-width:94vw;max-height:80vh;border-radius:10px;display:block;margin:auto}
+#lbc{color:#fff;text-align:center;margin-top:8px}#lbp,#lbn{position:fixed;top:50%;background:#000b;color:#fff;border:0;font-size:26px}#lbp{left:12px}#lbn{right:12px}
+@media(max-width:800px){nav{top:auto;width:auto;right:0;flex-direction:row;border-right:0;border-top:1px solid var(--line);padding:6px;justify-content:space-around;gap:0}
+.brand,.sp,#th{display:none}nav a,nav button{flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;text-align:center}main{margin:0;padding:16px 14px 92px}#bb{top:8px}}
+</style></head><body>
+<nav><div class=brand>📷 CloudFrame <small>v1.0</small></div>
+<a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Photos</span></a>
+<a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
+<a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
+<a class=fr href="/"><i>▶</i><span>Frame</span></a><button id=th title="Toggle light/dark"><i>🌓</i><span>Theme</span></button><button id=lo><i>⎋</i><span>Log out</span></button></nav>
+<main>
+<div class=v id=v-overview><div id=ov></div></div>
+<div class=v id=v-albums><div class=grid id=ag></div><p><small>Ticked albums are shown on the frame. Deleting an album moves its photos to Unsorted.</small></p></div>
+<div class=v id=v-photos>
+<div id=dz>Drop photos here or click to choose<br><small>Photos over 4 megapixels are shrunk automatically; smaller ones are uploaded untouched.</small></div>
+<input type=file id=f accept="image/jpeg,image/png,image/webp" multiple hidden>
+<div id=bar><i></i></div><div id=st></div>
+<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><button id=sa>Select all shown</button>
+<div id=bb hidden><b id=bc></b> &nbsp; <select id=bm></select> <button id=bmv class=p>Move</button> <button id=bdl>Delete</button> <button id=bx>Clear</button></div>
+<div class=grid id=g></div></div>
+<div class=v id=v-display><form id=sf>
+<div id=pv><div id=pvi></div></div>
+<div class=pg>
+<div class=panel><h3>Overlay</h3><label><input type=checkbox name=overlay> Show overlay</label><br>
+<label>Position <select name=position><option value=tl>Top left</option><option value=tr>Top right</option><option value=bl>Bottom left</option><option value=br>Bottom right</option><option value=split>Split across all four corners</option></select></label><br>
+<label>Opacity <input type=range name=opacity min=.05 max=.9 step=.05></label><br>
+<label><input type=checkbox name=show_time> Time</label><label><input type=checkbox name=show_date> Date</label><label><input type=checkbox name=show_weather> Weather</label><label><input type=checkbox name=show_temp> Temperature</label><label><input type=checkbox name=show_meta> Photo info</label></div>
+<div class=panel><h3>Slideshow</h3><label>Seconds per photo <input type=number name=interval min=3 style="width:80px"></label><br>
+<label>Order <select name=order><option value=shuffle>Shuffle</option><option value=sequential>Newest first</option></select></label><br>
+<label>Fit <select name=fit><option value=cover>Fill screen</option><option value=contain>Show whole photo</option></select></label></div>
+<div class=panel><h3>Weather &amp; clock</h3><label>Units <select name=units><option>C</option><option>F</option></select></label><label><input type=checkbox name=h24> 24-hour clock</label><br>
+<input id=q placeholder="Search a place"> <button type=button id=gq>Find</button><br>
+<label>Lat <input name=lat style="width:100px"></label><label>Lon <input name=lon style="width:100px"></label><br>
+<label>Timezone <input name=tz list=tzs></label><datalist id=tzs></datalist></div>
+<div class=panel><h3>Background music</h3><label><input type=checkbox name=music> Play music on the frame</label><br>
+<label>Volume <input type=range name=music_volume min=0 max=1 step=.05></label><label><input type=checkbox name=music_shuffle> Shuffle</label>
+<div id=tr><small>Checking the BGM folder…</small></div>
+<p class=sub>Add tracks in the Storage tab (<b>BGM/</b> folder). Music starts after the first tap on the frame; each device has its own mute button.</p></div>
+</div><p class=sub>Changes save automatically.</p></form></div>
+<div class=v id=v-storage>
+<div id=crumb></div>
+<div id=sdz>Drop audio files here or click to choose<br><small>They upload into the current folder · mp3, m4a, aac, ogg, wav, flac · up to 90 MB each · only files directly inside <b>BGM/</b> play on the frame</small></div>
+<input type=file id=sf2 accept="audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac" multiple hidden>
+<div id=sbar><i></i></div><div id=sst></div>
+<audio id=pa controls hidden style="width:100%;margin:8px 0"></audio>
+<div><input id=nf placeholder="New folder name"> <button id=nfb>Create folder</button></div>
+<div id=sl></div></div>
+</main>
+<dialog id=lb><img id=lbi alt=''><div id=lbc></div><button id=lbp>‹</button><button id=lbn>›</button></dialog>
+<dialog id=dg><p id=dm></p><form method=dialog><button value=0>Cancel</button> <button value=1 class=p>OK</button></form></dialog><div id=ts></div>
+<script>
+const $=s=>document.querySelector(s),JH={'Content-Type':'application/json'};let tt,A=[],U=0,UC=null,S={},P=[];const sel=new Set();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const toast=m=>{const t=$('#ts');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)};
+const ask=m=>new Promise(r=>{$('#dm').textContent=m;const d=$('#dg');d.onclose=()=>r(d.returnValue=='1');d.showModal()});
+const j=async(u,o)=>{const r=await fetch(u,o);if(r.status==401||r.status==403)location='/login?mode=admin';const d=await r.json();if(d.error)toast(d.error);return d};
+const body=(o,m='POST')=>({method:m,headers:JH,body:JSON.stringify(o)});
+function tab(){const h=location.hash.slice(1)||'overview';document.querySelectorAll('.v').forEach(e=>e.classList.toggle('on',e.id=='v-'+h));
+document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.dataset.t==h));if(h=='storage')loadSt();if(h=='overview')loadOv()}onhashchange=tab;
+// ----- display settings
+Intl.supportedValuesOf?.('timeZone').forEach(z=>$('#tzs').append(new Option(z)));
+const fv=()=>{const b={};[...$('#sf').elements].filter(e=>e.name).forEach(x=>b[x.name]=x.type=='checkbox'?x.checked:x.value);return b};
+const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120'};
+function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_meta,tk:f.show_meta,n:f.show_meta};
+const G=f.position=='split'?{tl:['time','date'],tr:['temp','w'],bl:['cap'],br:['tk','n']}:{[f.position]:['time','date','temp','w','cap','tk','n']};
+$('#pvi').style.setProperty('--o',f.opacity);
+$('#pvi').innerHTML=!f.overlay?'':Object.entries(G).map(([c,ks])=>{const k=ks.filter(x=>sh[x]);return k.length?`<div class="pb ${c}">${k.map(x=>`<div>${SM[x]}</div>`).join('')}</div>`:''}).join('')}
+let st;$('#sf').oninput=()=>{pre();clearTimeout(st);st=setTimeout(async()=>{const d=await j('/api/settings',body(fv(),'PUT'));if(!d.error)toast('Saved ✓')},600)};
+$('#gq').onclick=async()=>{const r=(await(await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent($('#q').value))).json()).results?.[0];
+if(!r)return toast('Place not found');const f=$('#sf').elements;f.lat.value=r.latitude;f.lon.value=r.longitude;f.tz.value=r.timezone;$('#q').value=`${r.name}, ${r.country}`;$('#sf').oninput()};
+async function loadS(){S=await j('/api/settings');[...$('#sf').elements].filter(e=>e.name).forEach(e=>e.type=='checkbox'?e.checked=S[e.name]:e.value=S[e.name]);pre()}
+// ----- albums
+const aopt=s=>A.map(a=>`<option value="${a.id}"${a.id==s?' selected':''}>${esc(a.name)}</option>`).join('');
+async function loadA(){const r=await j('/api/albums');A=r.albums;U=r.unsorted;UC=r.ucover;const hid=S.hide_albums||[];
+$('#ag').innerHTML=[{id:'none',name:'Unsorted',n:U,cover:UC},...A].map(a=>`<div class=card><div class=cv>${a.cover?`<img loading=lazy src="/api/thumb/${a.cover}">`:'<small>No photos</small>'}</div>${a.id=='none'?'<b>Unsorted</b>':`<input data-ren="${a.id}" value="${esc(a.name)}">`}<small>${a.n} photo${a.n==1?'':'s'}</small><label><input type=checkbox data-show="${a.id}"${hid.includes(a.id)?'':' checked'}> On frame</label>${a.id=='none'?'':`<button data-del="${a.id}">Delete</button>`}</div>`).join('')+'<div class=card><b>New album</b><input id=an placeholder="Album name"><button id=ab class=p>Create</button></div>';
+const u=$('#ua').value,f=$('#fa').value||'all',m=$('#bm').value;
+$('#ua').innerHTML='<option value="">Unsorted</option>'+aopt();$('#ua').value=u;
+$('#fa').innerHTML='<option value=all>All photos</option><option value=none>Unsorted</option>'+aopt();$('#fa').value=f;
+$('#bm').innerHTML='<option value="">Move to Unsorted</option>'+A.map(a=>`<option value="${a.id}">Move to ${esc(a.name)}</option>`).join('');$('#bm').value=m}
+$('#ag').onchange=async e=>{const t=e.target;
+if(t.dataset.ren){await j('/api/albums/'+t.dataset.ren,body({name:t.value},'PATCH'));toast('Renamed ✓')}
+if(t.dataset.show){S=await j('/api/settings',body({hide_albums:[...document.querySelectorAll('[data-show]')].filter(x=>!x.checked).map(x=>x.dataset.show)},'PUT'));toast('Saved ✓')}
+refresh()};
+$('#ag').onclick=async e=>{const t=e.target;
+if(t.dataset.del&&await ask('Delete this album? Its photos move to Unsorted.')){await j('/api/albums/'+t.dataset.del,{method:'DELETE'});refresh()}
+if(t.id=='ab'){const n=$('#an').value.trim();if(n){await j('/api/albums',body({name:n}));refresh()}}};
+// ----- photos
+async function loadP(){P=await j('/api/photos');rP()}
+const shown=()=>{const f=$('#fa').value||'all';return P.filter(p=>f=='all'||(p.album_id||'none')==f)};
+function rP(){$('#g').innerHTML=shown().map(p=>`<figure data-id="${p.id}"${sel.has(p.id)?' class=sel':''}><img loading=lazy src="/api/thumb/${p.id}"><button class=zoom data-z="${p.id}" title="View full size">⤢</button><input data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="Caption"></figure>`).join('')||'<small>No photos here.</small>';bar()}
+const bar=()=>{$('#bb').hidden=!sel.size;$('#bc').textContent=sel.size+' selected'};
+const refresh=async()=>{await loadA();await loadP()};
+$('#fa').onchange=rP;
+$('#g').onclick=e=>{if(e.target.dataset.z){lbShow(shown().findIndex(p=>p.id==e.target.dataset.z));$('#lb').showModal();return}if(e.target.tagName=='INPUT')return;const f=e.target.closest('figure');if(!f)return;const id=f.dataset.id;sel.has(id)?sel.delete(id):sel.add(id);f.classList.toggle('sel');bar()};
+$('#g').onchange=async e=>{if(e.target.dataset.cap){await j('/api/photos/'+e.target.dataset.cap,body({caption:e.target.value},'PATCH'));toast('Saved ✓')}};
+$('#sa').onclick=()=>{shown().forEach(p=>sel.add(p.id));rP()};$('#bx').onclick=()=>{sel.clear();rP()};
+$('#bmv').onclick=async()=>{await j('/api/photos/bulk',body({ids:[...sel],action:'move',album_id:$('#bm').value}));toast('Moved ✓');sel.clear();refresh()};
+$('#bdl').onclick=async()=>{if(await ask(`Delete ${sel.size} photo(s) permanently?`)){await j('/api/photos/bulk',body({ids:[...sel],action:'delete'}));sel.clear();refresh()}};
+// ----- upload (resize to 4MP, thumbnail, progress)
+const MAX=4e6;
+async function prep(f){const b=await createImageBitmap(f,{imageOrientation:'from-image'}),px=b.width*b.height;let file=f,w=b.width,h=b.height;
+if(px>MAX){const s=Math.sqrt(MAX/px);w=Math.floor(b.width*s);h=Math.floor(b.height*s);const c=new OffscreenCanvas(w,h),x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(b,0,0,w,h);
+file=new File([await c.convertToBlob({type:'image/jpeg',quality:.9})],'p.jpg',{type:'image/jpeg'})}
+const k=Math.min(1,400/Math.max(b.width,b.height)),t=new OffscreenCanvas(Math.round(b.width*k),Math.round(b.height*k));t.getContext('2d').drawImage(b,0,0,t.width,t.height);
+return{file,w,h,th:await t.convertToBlob({type:'image/jpeg',quality:.8})}}
+async function taken(f){const t=new TextDecoder('latin1').decode(await f.slice(0,65536).arrayBuffer()),m=t.match(/(\d{4}):(\d\d):(\d\d) \d\d:\d\d:\d\d/);
+return m?`${m[1]}-${m[2]}-${m[3]}`:new Date(f.lastModified).toISOString().slice(0,10)}
+const up=(d,cb)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('POST','/api/photos');x.upload.onprogress=e=>cb(e.loaded/e.total);
+x.onload=()=>x.status<300?res():rej(new Error(JSON.parse(x.responseText||'{}').error||x.status));x.onerror=()=>rej(new Error('Network error'));x.send(d)});
+async function handle(fs){fs=[...fs];$('#bar').style.display='block';let n=0;
+for(const f of fs){$('#st').textContent=`Uploading ${n+1} of ${fs.length}: ${f.name}`;
+try{const t=await taken(f),{file,w,h,th}=await prep(f),d=new FormData();d.append('file',file);d.append('thumb',th,'t.jpg');d.append('taken_at',t);d.append('w',w);d.append('h',h);d.append('album',$('#ua').value);
+await up(d,fr=>$('#bar i').style.width=((n+fr)/fs.length*100)+'%')}catch(x){toast(f.name+': '+x.message)}n++}
+$('#bar i').style.width='100%';$('#st').textContent=`Uploaded ${n} photo(s)`;setTimeout(()=>{$('#bar').style.display='none';$('#bar i').style.width=0},1500);refresh()}
+$('#dz').onclick=()=>$('#f').click();$('#f').onchange=e=>{handle(e.target.files);e.target.value=''};
+$('#dz').ondragover=e=>{e.preventDefault();$('#dz').classList.add('hov')};$('#dz').ondragleave=()=>$('#dz').classList.remove('hov');
+$('#dz').ondrop=e=>{e.preventDefault();$('#dz').classList.remove('hov');handle(e.dataTransfer.files)};
+$('#lo').onclick=async()=>{await fetch('/api/logout');await Promise.all((await caches.keys()).map(k=>caches.delete(k)));location='/login'};
+// ----- R2 storage browser
+let sp='BGM/';const enc=k=>k.split('/').map(encodeURIComponent).join('/'),AUD=/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)$/i;
+const fsz=s=>s>1e6?(s/1e6).toFixed(1)+' MB':Math.max(1,Math.ceil(s/1e3))+' KB';
+async function loadSt(){const d=await j('/api/storage?prefix='+encodeURIComponent(sp));if(d.error)return;const parts=sp.split('/').filter(Boolean);
+$('#crumb').innerHTML='<a href="#" data-go="">Bucket</a>'+parts.map((p,i)=>` › <a href="#" data-go="${esc(parts.slice(0,i+1).join('/')+'/')}">${esc(p)}</a>`).join('')+(sp=='BGM/'?' <small>(music for the frame)</small>':'');
+let h=d.folders.map(f=>`<div class=row><a href="#" data-go="${esc(f)}">📁 ${esc(f.slice(sp.length,-1))}</a><span></span><span></span><button data-sdel="${esc(f)}">Delete</button></div>`).join('')
++d.files.map(f=>`<div class=row><span>${esc(f.name)}</span><small>${fsz(f.size)} · ${new Date(f.uploaded).toLocaleDateString()}</small><span>${AUD.test(f.name)?`<button data-play="${esc(f.key)}">▶</button> `:''}<a href="/api/storage/${enc(f.key)}" download="${esc(f.name)}">⬇</a></span><button data-sdel="${esc(f.key)}">Delete</button></div>`).join('');
+if(!h)h='<small>This folder is empty.</small>';if(d.hidden)h+=`<p><small>${d.hidden} photo file(s) are hidden here; manage them in the Photos tab.</small></p>`;if(d.more)h+='<p><small>Listing truncated.</small></p>';$('#sl').innerHTML=h}
+$('#v-storage').onclick=async e=>{const t=e.target.closest('[data-go],[data-sdel],[data-play]');if(!t)return;e.preventDefault();
+if(t.dataset.go!==undefined){sp=t.dataset.go;loadSt()}
+else if(t.dataset.play){const a=$('#pa');a.hidden=false;a.src='/api/storage/'+enc(t.dataset.play);a.play().catch(()=>{})}
+else if(await ask(`Delete ${t.dataset.sdel}?`)){await j('/api/storage/'+enc(t.dataset.sdel),{method:'DELETE'});toast('Deleted');loadSt();loadM()}};
+$('#nfb').onclick=async()=>{const n=$('#nf').value.trim().replace(/^\/+|\/+$/g,'');if(!n)return;const d=await j('/api/storage/folder',body({path:sp+n+'/'}));if(!d.error){$('#nf').value='';toast('Folder created');loadSt()}};
+const upS=(file,key,cb)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('PUT','/api/storage/'+enc(key));x.upload.onprogress=e=>cb(e.loaded/e.total);
+x.onload=()=>x.status<300?res():rej(new Error(JSON.parse(x.responseText||'{}').error||x.status));x.onerror=()=>rej(new Error('Network error'));x.send(file)});
+async function handleS(fs){fs=[...fs];$('#sbar').style.display='block';let n=0,ok=0;
+for(const f of fs){$('#sst').textContent=`Uploading ${n+1} of ${fs.length}: ${f.name}`;
+try{if(!AUD.test(f.name))throw new Error('not an audio file');await upS(f,sp+f.name,fr=>$('#sbar i').style.width=((n+fr)/fs.length*100)+'%');ok++}catch(x){toast(f.name+': '+x.message)}n++}
+$('#sbar i').style.width='100%';$('#sst').textContent=`Uploaded ${ok} of ${fs.length}`;setTimeout(()=>{$('#sbar').style.display='none';$('#sbar i').style.width=0},1500);loadSt();loadM()}
+$('#sdz').onclick=()=>$('#sf2').click();$('#sf2').onchange=e=>{handleS(e.target.files);e.target.value=''};
+$('#sdz').ondragover=e=>{e.preventDefault();$('#sdz').classList.add('hov')};$('#sdz').ondragleave=()=>$('#sdz').classList.remove('hov');
+$('#sdz').ondrop=e=>{e.preventDefault();$('#sdz').classList.remove('hov');handleS(e.dataTransfer.files)};
+// ----- overview, lightbox, theme
+async function loadOv(){const[st,m]=await Promise.all([j('/api/stats'),j('/api/music')]),tr=Array.isArray(m)?m.length:0;
+const T=[['🖼','Photos',st.photos],['📁','Albums',st.albums],['🎵','Music tracks',tr],['💾','Photo storage',fsz(st.bytes)]],tips=[];
+if(!st.photos)tips.push(['#photos','Upload your first photos']);
+if(S.lat===''||S.lon==='')tips.push(['#display','Set a weather location so the overlay can show the weather']);
+if(S.music&&!tr)tips.push(['#storage','Music is on, but the BGM folder has no tracks yet']);
+$('#ov').innerHTML=`<h2>Overview</h2><div class=tiles>${T.map(t=>`<div class=tile><span>${t[0]} ${t[1]}</span><b>${t[2]}</b></div>`).join('')}</div>
+<div class=pg><div class=panel><h3>Quick actions</h3><a href="/" class=tip>▶ Open the frame</a><a href="#photos" class=tip>🖼 Upload photos</a><a href="#storage" class=tip>🎵 Add music</a></div>
+<div class=panel><h3>Setup checklist</h3>${tips.length?tips.map(t=>`<a href="${t[0]}" class=tip>${t[1]}</a>`).join(''):'<p class=ok>✓ Everything looks good.</p>'}</div></div>
+${P.length?`<div class=panel style="margin-top:14px"><h3>Recently added</h3><div class=strip>${P.slice(0,10).map(p=>`<a href="#photos"><img src="/api/thumb/${p.id}" loading=lazy alt=""></a>`).join('')}</div></div>`:''}`}
+let li=0;
+function lbShow(k){const L=shown();if(!L.length)return;li=(k+L.length)%L.length;const p=L[li];$('#lbi').src='/api/photo/'+p.id;$('#lbc').textContent=(p.caption?p.caption+'  ·  ':'')+(li+1)+' / '+L.length}
+$('#lb').onclick=e=>{if(e.target.id=='lbp')lbShow(li-1);else if(e.target.id=='lbn')lbShow(li+1);else $('#lb').close()};
+addEventListener('keydown',e=>{if(!$('#lb').open)return;if(e.key=='ArrowLeft')lbShow(li-1);if(e.key=='ArrowRight')lbShow(li+1)});
+$('#th').onclick=()=>{const d=document.documentElement,c=d.dataset.theme||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark');d.dataset.theme=localStorage.theme=c=='dark'?'light':'dark'};
+async function loadM(){const m=await j('/api/music');$('#tr').innerHTML=!Array.isArray(m)?'':m.length?`<small>${m.length} track${m.length==1?'':'s'}: ${m.map(x=>esc(x.name)).join(', ')}</small>`:'<small>No tracks found yet.</small>'}
+(async()=>{await loadS();loadM();await refresh();tab()})();
+</script></body></html>
