@@ -1,4 +1,26 @@
 const E = new TextEncoder();
+const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 61: 'Rain', 63: 'Rain', 65: 'Heavy rain',
+  71: 'Snow', 73: 'Snow', 75: 'Heavy snow', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm' };
+let WX = { k: '', t: 0, v: null }; // weather cache (lite frame gets weather via the Worker)
+async function weatherFor(S) {
+  if (S.lat === '' || S.lon === '') return null;
+  const k = S.lat + ',' + S.lon + S.units;
+  if (WX.k === k && Date.now() - WX.t < 6e5) return WX.v;
+  try {
+    const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&temperature_unit=${S.units === 'F' ? 'fahrenheit' : 'celsius'}`)).json();
+    WX = { k, t: Date.now(), v: { t: Math.round(r.current.temperature_2m), c: WMO[r.current.weather_code] || '' } };
+  } catch { if (WX.k !== k) return null; }
+  return WX.v;
+}
+function tzOffset(tz) { // minutes east of UTC, so the lite page can show the right local time without Intl
+  try {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date());
+    const g = t => +p.find(x => x.type === t).value;
+    return Math.round((Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - Date.now()) / 6e4);
+  } catch { return 0; }
+}
+const liteForm = msg => new Response(`<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>CloudFrame Lite</title><style>body{margin:0;background:#14161a;color:#e8e8ea;font:18px Helvetica,Arial,sans-serif}form{max-width:320px;margin:15vh auto;padding:0 20px}h1{font-size:24px}input,button{display:block;width:100%;box-sizing:border-box;font:inherit;padding:12px;margin:10px 0;border-radius:10px;border:1px solid #444;background:#2a2f38;color:#fff}button{background:#3b6ef5;border-color:#3b6ef5}p{color:#ff8a8a;min-height:1.2em}</style></head><body><form method=post action=/lite/login><h1>CloudFrame</h1><input name=username placeholder=Username autocapitalize=off autocorrect=off required><input name=pin type=password pattern="[0-9]*" maxlength=8 placeholder="8-digit PIN" required><button>Start frame</button><p>${msg || ''}</p></form></body></html>`,
+  { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
 const reserved = k => /^[0-9a-f-]{36}(-t)?$/.test(k); // photo files, managed from the Photos tab
 const badKey = k => !k || k.length > 400 || k.startsWith('/') || /[\u0000-\u001f\\]/.test(k) ||
   k.split('/').some((s, i, a) => s === '..' || s === '.' || (s === '' && i < a.length - 1));
@@ -27,11 +49,14 @@ async function authed(req, env) {
 const num = (v, d) => { const n = parseInt(v); return isNaN(n) ? d : n; };
 
 async function login(req, env) {
+  const lite = new URL(req.url).pathname === '/lite/login'; // plain form post for old browsers (frame mode only)
+  const res = (st, o, h = {}) => !lite ? json(o, st, h) : o.ok ? new Response(null, { status: 302, headers: { Location: '/lite', ...h } })
+    : liteForm(o.error === 'locked' ? 'Too many attempts. Try again in ' + Math.ceil(o.retry / 60) + ' min.' : 'Invalid credentials');
   const ip = req.headers.get('CF-Connecting-IP') || 'unknown', now = Date.now();
   const row = await env.DB.prepare('SELECT * FROM login_attempts WHERE ip=?').bind(ip).first();
-  if (row && row.locked_until > now) return json({ error: 'locked', retry: Math.ceil((row.locked_until - now) / 1000) }, 429);
-  const b = await req.json().catch(() => ({}));
-  const fm = b.mode === 'frame'; // frame mode: username + PIN only, view-only session
+  if (row && row.locked_until > now) return res(429, { error: 'locked', retry: Math.ceil((row.locked_until - now) / 1000) });
+  const b = lite ? Object.fromEntries(await req.formData().then(f => [...f.entries()]).catch(() => [])) : await req.json().catch(() => ({}));
+  const fm = lite || b.mode === 'frame'; // frame mode: username + PIN only, view-only session
   const checks = await Promise.all([
     same(String(b.username || ''), env.FRAME_USERNAME), same(String(b.pin || ''), env.FRAME_PIN),
     fm ? true : same(String(b.password || ''), env.FRAME_PASSWORD)]);
@@ -39,7 +64,7 @@ async function login(req, env) {
     await env.DB.prepare('DELETE FROM login_attempts WHERE ip=?').bind(ip).run();
     const days = fm ? 90 : 30, sc = fm ? 'f' : 'a', exp = String(now + days * 864e5);
     const tok = `${exp}.${sc}.${hex(await hmac(env.SESSION_SECRET, exp + '.' + sc))}`;
-    return json({ ok: true, next: fm ? '/' : '/admin' }, 200, { 'Set-Cookie': `pf=${tok}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${days * 86400}` });
+    return res(200, { ok: true, next: fm ? '/' : '/admin' }, { 'Set-Cookie': `pf=${tok}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${days * 86400}` });
   }
   const win = num(env.FAIL_WINDOW_MINUTES, 15) * 6e4, lock = num(env.LOCK_MINUTES, 30) * 6e4, max = num(env.MAX_FAILS, 5);
   const inWin = row && now - row.first_fail < win;
@@ -47,7 +72,7 @@ async function login(req, env) {
   await env.DB.prepare(`INSERT INTO login_attempts(ip,fails,first_fail,locked_until) VALUES(?1,?2,?3,?4)
     ON CONFLICT(ip) DO UPDATE SET fails=?2, first_fail=?3, locked_until=?4`).bind(ip, fails, first, until).run();
   await new Promise(r => setTimeout(r, 400));
-  return until ? json({ error: 'locked', retry: Math.ceil(lock / 1000) }, 429) : json({ error: 'Invalid credentials' }, 401);
+  return until ? res(429, { error: 'locked', retry: Math.ceil(lock / 1000) }) : res(401, { error: 'Invalid credentials' });
 }
 
 const getSettings = async env => {
@@ -61,7 +86,7 @@ const page = async (env, req, n) => {
 
 async function route(req, env) {
   const u = new URL(req.url), p = u.pathname, m = req.method;
-  if (m !== 'GET' && m !== 'HEAD') { const o = req.headers.get('Origin'); if (o && new URL(o).host !== u.host) return json({ error: 'Bad origin' }, 403); }
+  if (m !== 'GET' && m !== 'HEAD' && p !== '/lite/login') { const o = req.headers.get('Origin'); let oh = ''; try { oh = new URL(o).host; } catch {} if (o && oh !== u.host) return json({ error: 'Bad origin' }, 403); }
   if (m === 'GET' && (p === '/manifest.webmanifest' || p === '/sw.js' || p === '/icon.svg')) { // public PWA assets
     const r = await env.ASSETS.fetch(req), o = new Response(r.body, r);
     if (p === '/sw.js') o.headers.set('Cache-Control', 'no-cache');
@@ -69,16 +94,19 @@ async function route(req, env) {
     return o;
   }
   if (p === '/login' && m === 'GET') return page(env, req, 'login');
+  if (p === '/lite/login') return m === 'POST' ? login(req, env) : liteForm('');
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
-  if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + '/login', 302);
+  if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
   if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.0' });
-  const viewOk = m === 'GET' && (p === '/' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/photo\/[0-9a-f-]{36}$/.test(p));
+  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/photo\/[0-9a-f-]{36}$/.test(p));
   if (sc === 'f' && !viewOk && p !== '/api/logout')
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
 
   if (p === '/' ) return page(env, req, 'frame');
   if (p === '/admin') return page(env, req, 'admin');
+  if (p === '/lite') return page(env, req, 'lite');
+  if (p === '/lite/logout') return new Response(null, { status: 302, headers: { Location: '/lite/login', 'Set-Cookie': 'pf=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0' } });
   if (p === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': 'pf=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0' });
 
   if (p === '/api/settings' && m === 'GET') return json(await getSettings(env));
@@ -120,6 +148,13 @@ async function route(req, env) {
     await env.DB.prepare('INSERT INTO photos(id,album_id,caption,taken_at,width,height,bytes,uploaded_at) VALUES(?,?,?,?,?,?,?,?)')
       .bind(id, aid, '', taken, w, h, buf.byteLength, Date.now()).run();
     return json({ id });
+  }
+  if (p === '/api/lite' && m === 'GET') { // everything the lite frame needs in one small response
+    const S = await getSettings(env), hid = S.hide_albums || [];
+    const rows = (await env.DB.prepare('SELECT id,album_id,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
+      .filter(r => !hid.includes(r.album_id || 'none')).map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at }));
+    const { hide_albums, music, music_volume, music_shuffle, lat, lon, tz, ...pub } = S;
+    return json({ s: pub, p: rows, w: await weatherFor(S), off: tzOffset(S.tz) });
   }
   if (p === '/api/stats' && m === 'GET') {
     const s = await env.DB.prepare('SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes FROM photos').first();
