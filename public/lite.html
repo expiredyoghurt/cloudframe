@@ -11,12 +11,15 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Helve
 #cb{position:fixed;left:50%;bottom:20px;-webkit-transform:translateX(-50%);transform:translateX(-50%);display:none;background:rgba(0,0,0,.65);border-radius:14px;padding:8px;white-space:nowrap;z-index:9}
 #cb button,#cb a{display:inline-block;margin:0 3px;padding:9px 14px;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:#fff;font:16px Helvetica,Arial,sans-serif;text-decoration:none}
 #hint{display:none;position:fixed;left:20px;right:20px;bottom:90px;padding:12px 16px;border-radius:12px;background:rgba(0,0,0,.75);color:#fff;font:16px Helvetica,Arial,sans-serif;text-align:center;z-index:10}
+#dim{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;-webkit-transition:opacity 3s;transition:opacity 3s;z-index:1}#ov .b{z-index:2}
+.c{left:50%;top:50%;margin:0;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);max-width:90%;text-align:center;padding:3vmin 5vmin}.c .t{font-size:17vmin}.c .m{font-size:4.2vmin}
+.c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:3.4vmin}.pd{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:6px}
 </style></head><body>
-<div class=s id=a></div><div class=s id=b></div><video class=s id=vd playsinline muted></video><div id=ov></div>
+<div class=s id=a></div><div class=s id=b></div><video class=s id=vd playsinline muted></video><div id=dim></div><div id=ov></div>
 <div id=cb><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><button id=fs>Fullscreen</button><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div>
 <div id=hint>Fullscreen is not available in this browser. Tap Share, then Add to Home Screen, and open CloudFrame Lite from your Home Screen for a full-screen view.</div>
 <script>
-var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
+var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,PSI=null,PC={'Good':'#4cc38a','Moderate':'#4da3ff','Unhealthy':'#f5d33f','Very unhealthy':'#f59e42','Hazardous':'#ef5350'},off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
 var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function $(id){return document.getElementById(id)}
@@ -26,7 +29,7 @@ function get(u,cb){var x=new XMLHttpRequest();x.open('GET',u,true);
 x.onreadystatechange=function(){if(x.readyState!==4)return;
 if(x.status===401||x.status===403){location.href='/lite/login';return}
 if(x.status===200){try{cb(JSON.parse(x.responseText))}catch(e){}}};x.send(null)}
-function load(){get('/api/lite',function(d){S=d.s;W=d.w;off=d.off;
+function load(){get('/api/lite',function(d){S=d.s;W=d.w;PSI=d.psi;off=d.off;
 var k=d.p.map(function(p){return p.id}).join(',');
 if(k!==sig){sig=k;P=d.p;O=[];for(var n=0;n<P.length;n++)O.push(n);
 if(S.order==='shuffle')for(var j=O.length-1;j>0;j--){var r=Math.floor(Math.random()*(j+1)),t=O[j];O[j]=O[r];O[r]=t}
@@ -38,18 +41,24 @@ im.onload=function(){if(my!==tok)return;
 el.style.backgroundImage='url(/api/photo/'+p.id+')';el.style.backgroundSize=S.fit==='contain'?'contain':'cover';
 el.className='s on';old.className='s';cur=cur?0:1;now=p;draw()};
 im.src='/api/photo/'+p.id}
-function draw(){var o=$('ov');
+function sl(m){if(!S.sleep_on||S.sleep_start===S.sleep_end)return false;var a=S.sleep_start.split(':'),b=S.sleep_end.split(':'),s=a[0]*60+ +a[1],e=b[0]*60+ +b[1];return s<e?(m>=s&&m<e):(m>=s||m<e)}
+function draw(){var o=$('ov');var d0=new Date(Date.now()+off*60000),sleepNow=sl(d0.getUTCHours()*60+d0.getUTCMinutes());
+$('dim').style.opacity=sleepNow?1-(S.sleep_level==null?5:S.sleep_level)/100:0;
 if(!P.length){o.innerHTML='<div class="b bl" style="background:rgba(0,0,0,.35)"><div class=m>No photos to show</div></div>';return}
 if(!S.overlay){o.innerHTML='';return}
 var d=new Date(Date.now()+off*60000),F={},h=d.getUTCHours(),mi=z(d.getUTCMinutes());
 if(S.show_time)F.time='<div class=t>'+(S.h24?z(h)+':'+mi:((h%12)||12)+':'+mi+(h<12?' AM':' PM'))+'</div>';
 if(S.show_date)F.date='<div class=m>'+DN[d.getUTCDay()]+', '+d.getUTCDate()+' '+MN[d.getUTCMonth()]+' '+d.getUTCFullYear()+'</div>';
+if(S.show_psi&&PSI)F.psi='<div class=m><span class=pd style="background:'+PC[PSI.band]+'"></span>PSI '+PSI.v+' &middot; '+PSI.band+'</div>';
 if(W){if(S.show_temp)F.temp='<div class=t>'+W.t+'&deg;'+S.units+'</div>';if(S.show_weather&&W.c)F.w='<div class=m>'+W.c+'</div>'}
 if(S.show_meta&&now){if(now.caption)F.cap='<div class=m>'+esc(now.caption)+'</div>';
 if(now.taken_at){var t=now.taken_at.split('-');if(t.length===3)F.tk='<div class=m>Taken '+(+t[2])+' '+MN[t[1]-1]+' '+t[0]+'</div>'}
 F.n='<div class=m>'+(now.kind==='video'?'Video ':'Photo ')+(i+1)+' of '+P.length+'</div>'}
-var G={};if(S.position==='split'){G={tl:['time','date'],tr:['temp','w'],bl:['cap'],br:['tk','n']}}
-else G[S.position]=['time','date','temp','w','cap','tk','n'];
+if(sleepNow){var wl=[];if(W){if(S.show_weather&&W.c)wl.push(W.c);if(S.show_temp)wl.push(W.t+'&deg;'+S.units)}
+var tmr=W&&W.tm&&(S.show_weather||S.show_temp)?'<div class=tm>Tomorrow: '+(S.show_weather?W.tm.c+' ':'')+(S.show_temp?W.tm.lo+'&deg;/'+W.tm.hi+'&deg;'+S.units:'')+(S.show_weather&&W.tm.p!=null?' &middot; '+W.tm.p+'% rain':'')+'</div>':'';
+o.innerHTML='<div class="b c" style="background:rgba(0,0,0,'+S.opacity+')">'+(F.time||'')+(F.date||'')+(wl.length?'<div class=m>'+wl.join(' &middot; ')+'</div>':'')+(F.psi||'')+tmr+'</div>';return}
+var G={};if(S.position==='split'){G={tl:['time','date'],tr:['temp','w','psi'],bl:['cap'],br:['tk','n']}}
+else G[S.position]=['time','date','temp','w','psi','cap','tk','n'];
 var bg='background:rgba(0,0,0,'+S.opacity+')',out='';
 for(var c in G){var s='',ks=G[c];for(var n=0;n<ks.length;n++)s+=F[ks[n]]||'';if(s)out+='<div class="b '+c+'" style="'+bg+'">'+s+'</div>'}
 o.innerHTML=out}

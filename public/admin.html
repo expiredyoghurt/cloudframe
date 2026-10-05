@@ -48,7 +48,7 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 .row2{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.row2 a{color:var(--ac);word-break:break-all;font-size:13px}
 .vb{position:absolute;top:14px;right:50px;background:#000b;color:#fff;border-radius:8px;padding:2px 8px;font-size:12px}
 </style></head><body>
-<nav><div class=brand>📷 CloudFrame <small>v1.1</small></div>
+<nav><div class=brand>📷 CloudFrame <small>v1.2</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Media</span></a>
 <a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
@@ -80,7 +80,13 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div class=panel><h3>Weather &amp; clock</h3><label>Units <select name=units><option>C</option><option>F</option></select></label><label><input type=checkbox name=h24> 24-hour clock</label><br>
 <input id=q placeholder="Search a place"> <button type=button id=gq>Find</button><br>
 <label>Lat <input name=lat style="width:100px"></label><label>Lon <input name=lon style="width:100px"></label><br>
-<label>Timezone <input name=tz list=tzs></label><datalist id=tzs></datalist></div>
+<label>Timezone <input name=tz list=tzs></label><datalist id=tzs></datalist><br>
+<label><input type=checkbox name=show_psi> Show PSI (Singapore, NEA 24-hour)</label>
+<label>Region <select name=psi_region><option value=national>National</option><option value=north>North</option><option value=south>South</option><option value=east>East</option><option value=west>West</option><option value=central>Central</option></select></label></div>
+<div class=panel><h3>Sleep mode</h3><label><input type=checkbox name=sleep_on> Dim during sleep hours</label><br>
+<label>From <input type=time name=sleep_start></label><label>To <input type=time name=sleep_end></label><br>
+<label>Brightness while asleep <input type=number name=sleep_level min=0 max=50 style="width:70px"> %</label>
+<p class=sub>Photos dim, and the time, day, date, weather, temperature and tomorrow's forecast show large in the middle (if the overlay is on). Uses the timezone set under Weather &amp; clock.</p></div>
 <div class=panel><h3>Background music</h3><label><input type=checkbox name=music> Play music on the frame</label><br>
 <label>Volume <input type=range name=music_volume min=0 max=1 step=.05></label><label><input type=checkbox name=music_shuffle> Shuffle</label>
 <div id=tr><small>Checking the BGM folder…</small></div>
@@ -109,9 +115,9 @@ document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.d
 // ----- display settings
 Intl.supportedValuesOf?.('timeZone').forEach(z=>$('#tzs').append(new Option(z)));
 const fv=()=>{const b={};[...$('#sf').elements].filter(e=>e.name).forEach(x=>b[x.name]=x.type=='checkbox'?x.checked:x.value);return b};
-const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120'};
-function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_meta,tk:f.show_meta,n:f.show_meta};
-const G=f.position=='split'?{tl:['time','date'],tr:['temp','w'],bl:['cap'],br:['tk','n']}:{[f.position]:['time','date','temp','w','cap','tk','n']};
+const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120',psi:'● PSI 54 · Moderate'};
+function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_meta,tk:f.show_meta,n:f.show_meta,psi:f.show_psi};
+const G=f.position=='split'?{tl:['time','date'],tr:['temp','w','psi'],bl:['cap'],br:['tk','n']}:{[f.position]:['time','date','temp','w','psi','cap','tk','n']};
 $('#pvi').style.setProperty('--o',f.opacity);
 $('#pvi').innerHTML=!f.overlay?'':Object.entries(G).map(([c,ks])=>{const k=ks.filter(x=>sh[x]);return k.length?`<div class="pb ${c}">${k.map(x=>`<div>${SM[x]}</div>`).join('')}</div>`:''}).join('')}
 let st;$('#sf').oninput=()=>{pre();clearTimeout(st);st=setTimeout(async()=>{const d=await j('/api/settings',body(fv(),'PUT'));if(!d.error)toast('Saved ✓')},600)};
