@@ -2,13 +2,13 @@
 A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + D1 + R2). Home/family use, protected by a username, password and 8-digit PIN.
 
 ## Features
-- **Frame screen** (`/`): fullscreen slideshow with crossfade, swipe/arrow-key controls, album quick-switch, pause, fullscreen, wake-lock.
+- **Frame screen** (`/`): fullscreen slideshow (fullscreen button, F key or double-click) with crossfade, swipe/arrow-key controls, album quick-switch, pause, fullscreen, wake-lock.
 - **Overlay:** translucent rounded box with date, time, weather, temperature and photo info; on/off, one corner or split across all four corners, adjustable opacity.
 - **Photos and albums:** upload (photos over 4 megapixels are shrunk in the browser, smaller ones untouched), thumbnails, captions, bulk move/delete, choose which albums are shown.
 - **Background music:** audio files (mp3, m4a, aac, ogg, wav, flac) in the `BGM/` folder of the R2 bucket. Music starts after the first tap; each device has a mute button.
 - **Storage tab:** browse the R2 bucket, upload audio files, make folders, play, download and delete from the browser. Photo files are hidden and protected there.
 - **Installable and offline:** installs as an app; photos are cached so the frame keeps cycling if the connection drops (music and weather need a connection).
-- **Lite frame** (`/lite`): a tiny page for older tablets (written for iPad 2 / iOS 9). Plain-form PIN sign-in, no modern JavaScript, weather and time supplied by the Worker. No music, offline cache or fullscreen. Add it to the Home Screen for a full-screen view.
+- **Lite frame** (`/lite`): a tiny page for older tablets (written for iPad 2 / iOS 9). Plain-form PIN sign-in, no modern JavaScript, weather and time supplied by the Worker. No music or offline cache. Its Fullscreen button works where the browser allows it; iOS 9 doesn't, so add the page to the Home Screen instead (the button explains how).
 - **Direct links:** the admin Overview lists copyable links to the standard frame, the frame sign-in page and the lite frame.
 - **Admin:** Overview, Photos, Albums, Display, Storage; light/dark theme; settings save automatically.
 - **Login modes:** *Admin* (username + password + PIN) or *Open frame* (username + PIN, view-only, 90 days).
