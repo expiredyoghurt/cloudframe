@@ -10,10 +10,11 @@ backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;text-shad
 #cb{position:fixed;left:50%;bottom:2.5vmin;transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:8px 10px;border-radius:16px;
 background:rgba(0,0,0,.6);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
 body.ui #cb{opacity:1;pointer-events:auto}
-#cb>*{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer}
+#cb>*,#mg>*{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer}
+#mg{display:contents}#mg[hidden]{display:none}#mv{width:90px;padding:0;min-height:0;vertical-align:middle}#mt{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
 </style></head><body>
 <img class=s id=a alt=""><img class=s id=b alt=""><div id=ov></div>
-<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><button id=mu hidden>🔊</button><button id=fs>⛶</button><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
+<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs>⛶</button><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
 <script>
 let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0;
 const $=id=>document.getElementById(id);
@@ -69,17 +70,19 @@ document.addEventListener('visibilitychange',()=>document.visibilityState=='visi
 // ---- offline cache (service worker) and background music
 const syncSW=ids=>navigator.serviceWorker?.ready.then(r=>r.active?.postMessage({type:'sync',ids})).catch(()=>{});
 navigator.serviceWorker?.register('/sw.js').catch(()=>{});
-async function music(){au.volume=S.music_volume??.5;$('mu').hidden=!S.music;
+async function music(){au.volume=localStorage.vol!=null?+localStorage.vol:(S.music_volume??.5);$('mv').value=au.volume;$('mg').hidden=!S.music;
 if(!S.music){au.pause();return}
 let t=[];try{t=(await api('/api/music')).map(x=>x.name)}catch{return}
 if(t.slice().sort().join('|')!=[...TR].sort().join('|')){TR=t;if(S.music_shuffle)TR.sort(()=>Math.random()-.5);ti=-1;au.pause();au.removeAttribute('src')}
 if(TR.length&&au.paused&&!muted)au.src?au.play().catch(()=>{}):playNext()}
 function playNext(){if(!TR.length||muted)return;ti=(ti+1)%TR.length;au.src='/api/music/'+encodeURIComponent(TR[ti]);au.play().catch(()=>{})}
-au.onended=playNext;au.onplaying=()=>errs=0;au.onerror=()=>{if(++errs<=TR.length)setTimeout(playNext,1500)};
+au.onended=playNext;au.onplaying=()=>{errs=0;$('mt').textContent=(TR[ti]||'').replace(/\.[^.]+$/,'')};au.onerror=()=>{if(++errs<=TR.length)setTimeout(playNext,1500)};
 const unlock=()=>{if(S.music&&au.paused&&!muted&&TR.length)au.src?au.play().catch(()=>{}):playNext()};
 ['pointerdown','keydown','touchend'].forEach(e=>addEventListener(e,unlock));
 $('mu').textContent=muted?'🔇':'🔊';
 $('mu').onclick=()=>{muted=!muted;localStorage.mute=muted?'1':'0';$('mu').textContent=muted?'🔇':'🔊';muted?au.pause():unlock()};
+$('mn').onclick=()=>{muted=false;localStorage.mute='0';$('mu').textContent='🔊';playNext()};
+$('mv').oninput=()=>{au.volume=+$('mv').value;localStorage.vol=$('mv').value};
 fetch('/api/me').then(r=>r.json()).then(d=>{me=d.scope;$('ad').hidden=me!='admin';draw()}).catch(()=>{});
 load().catch(()=>{}).finally(loop);setInterval(()=>load().catch(()=>{}),6e4);setInterval(draw,1e3);
 </script></body></html>

@@ -1,0 +1,61 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name=apple-mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-status-bar-style content=black><meta name=apple-mobile-web-app-title content="CloudFrame Lite">
+<title>CloudFrame Lite</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Helvetica,Arial,sans-serif}
+.s{position:absolute;top:0;left:0;width:100%;height:100%;background:#000 center center no-repeat;opacity:0;-webkit-transition:opacity 1.2s;transition:opacity 1.2s}.s.on{opacity:1}
+.b{position:absolute;margin:20px;padding:12px 18px;border-radius:18px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);max-width:44%;-webkit-backdrop-filter:blur(6px)}
+.tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}
+.t{font-size:44px;font-weight:bold;line-height:1.1}.m{font-size:18px}
+#cb{position:fixed;left:50%;bottom:20px;-webkit-transform:translateX(-50%);transform:translateX(-50%);display:none;background:rgba(0,0,0,.65);border-radius:14px;padding:8px;white-space:nowrap;z-index:9}
+#cb button,#cb a{display:inline-block;margin:0 3px;padding:9px 14px;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:#fff;font:16px Helvetica,Arial,sans-serif;text-decoration:none}
+</style></head><body>
+<div class=s id=a></div><div class=s id=b></div><div id=ov></div>
+<div id=cb><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div>
+<script>
+var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
+var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return '&#'+c.charCodeAt(0)+';'})}
+function z(n){return n<10?'0'+n:''+n}
+function get(u,cb){var x=new XMLHttpRequest();x.open('GET',u,true);
+x.onreadystatechange=function(){if(x.readyState!==4)return;
+if(x.status===401||x.status===403){location.href='/lite/login';return}
+if(x.status===200){try{cb(JSON.parse(x.responseText))}catch(e){}}};x.send(null)}
+function load(){get('/api/lite',function(d){S=d.s;W=d.w;off=d.off;
+var k=d.p.map(function(p){return p.id}).join(',');
+if(k!==sig){sig=k;P=d.p;O=[];for(var n=0;n<P.length;n++)O.push(n);
+if(S.order==='shuffle')for(var j=O.length-1;j>0;j--){var r=Math.floor(Math.random()*(j+1)),t=O[j];O[j]=O[r];O[r]=t}
+i=-1;if(P.length)show(0);else{$('a').className='s';$('b').className='s';now=null}}
+draw();if(!started){started=true;loop()}})}
+function show(k){if(!P.length)return;var L=O.length;i=((k%L)+L)%L;
+var p=P[O[i]],el=$(cur?'a':'b'),old=$(cur?'b':'a'),my=++tok,im=new Image();
+im.onload=function(){if(my!==tok)return;
+el.style.backgroundImage='url(/api/photo/'+p.id+')';el.style.backgroundSize=S.fit==='contain'?'contain':'cover';
+el.className='s on';old.className='s';cur=cur?0:1;now=p;draw()};
+im.src='/api/photo/'+p.id}
+function draw(){var o=$('ov');
+if(!P.length){o.innerHTML='<div class="b bl" style="background:rgba(0,0,0,.35)"><div class=m>No photos to show</div></div>';return}
+if(!S.overlay){o.innerHTML='';return}
+var d=new Date(Date.now()+off*60000),F={},h=d.getUTCHours(),mi=z(d.getUTCMinutes());
+if(S.show_time)F.time='<div class=t>'+(S.h24?z(h)+':'+mi:((h%12)||12)+':'+mi+(h<12?' AM':' PM'))+'</div>';
+if(S.show_date)F.date='<div class=m>'+DN[d.getUTCDay()]+', '+d.getUTCDate()+' '+MN[d.getUTCMonth()]+' '+d.getUTCFullYear()+'</div>';
+if(W){if(S.show_temp)F.temp='<div class=t>'+W.t+'&deg;'+S.units+'</div>';if(S.show_weather&&W.c)F.w='<div class=m>'+W.c+'</div>'}
+if(S.show_meta&&now){if(now.caption)F.cap='<div class=m>'+esc(now.caption)+'</div>';
+if(now.taken_at){var t=now.taken_at.split('-');if(t.length===3)F.tk='<div class=m>Taken '+(+t[2])+' '+MN[t[1]-1]+' '+t[0]+'</div>'}
+F.n='<div class=m>Photo '+(i+1)+' of '+P.length+'</div>'}
+var G={};if(S.position==='split'){G={tl:['time','date'],tr:['temp','w'],bl:['cap'],br:['tk','n']}}
+else G[S.position]=['time','date','temp','w','cap','tk','n'];
+var bg='background:rgba(0,0,0,'+S.opacity+')',out='';
+for(var c in G){var s='',ks=G[c];for(var n=0;n<ks.length;n++)s+=F[ks[n]]||'';if(s)out+='<div class="b '+c+'" style="'+bg+'">'+s+'</div>'}
+o.innerHTML=out}
+function loop(){clearTimeout(T);T=setTimeout(function(){if(!paused)show(i+1);loop()},(S.interval||15)*1000)}
+function ui(){$('cb').style.display='block';clearTimeout(UT);UT=setTimeout(function(){$('cb').style.display='none'},4000)}
+document.onclick=function(e){var id=e.target.id;
+if(id==='nx'){show(i+1);loop();ui()}else if(id==='pv'){show(i-1);loop();ui()}
+else if(id==='pp'){paused=!paused;e.target.innerHTML=paused?'&#9654;':'&#10074;&#10074;';ui()}
+else if(e.target.tagName!=='A')ui()};
+load();setInterval(load,60000);setInterval(draw,10000);
+</script></body></html>

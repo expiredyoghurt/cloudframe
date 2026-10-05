@@ -44,13 +44,14 @@ dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);borde
 dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visible}#lbi{max-width:94vw;max-height:80vh;border-radius:10px;display:block;margin:auto}
 #lbc{color:#fff;text-align:center;margin-top:8px}#lbp,#lbn{position:fixed;top:50%;background:#000b;color:#fff;border:0;font-size:26px}#lbp{left:12px}#lbn{right:12px}
 @media(max-width:800px){nav{top:auto;width:auto;right:0;flex-direction:row;border-right:0;border-top:1px solid var(--line);padding:6px;justify-content:space-around;gap:0}
-.brand,.sp,#th{display:none}nav a,nav button{flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;text-align:center}main{margin:0;padding:16px 14px 92px}#bb{top:8px}}
+.brand,.sp,#th,.lt{display:none}nav a,nav button{flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;text-align:center}main{margin:0;padding:16px 14px 92px}#bb{top:8px}}
+.row2{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.row2 a{color:var(--ac);word-break:break-all;font-size:13px}
 </style></head><body>
 <nav><div class=brand>📷 CloudFrame <small>v1.0</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Photos</span></a>
 <a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
-<a class=fr href="/"><i>▶</i><span>Frame</span></a><button id=th title="Toggle light/dark"><i>🌓</i><span>Theme</span></button><button id=lo><i>⎋</i><span>Log out</span></button></nav>
+<a class=fr href="/"><i>▶</i><span>Frame</span></a><a class=lt href="/lite"><i>📱</i><span>Lite</span></a><button id=th title="Toggle light/dark"><i>🌓</i><span>Theme</span></button><button id=lo><i>⎋</i><span>Log out</span></button></nav>
 <main>
 <div class=v id=v-overview><div id=ov></div></div>
 <div class=v id=v-albums><div class=grid id=ag></div><p><small>Ticked albums are shown on the frame. Deleting an album moves its photos to Unsorted.</small></p></div>
@@ -184,18 +185,21 @@ $('#sdz').ondrop=e=>{e.preventDefault();$('#sdz').classList.remove('hov');handle
 // ----- overview, lightbox, theme
 async function loadOv(){const[st,m]=await Promise.all([j('/api/stats'),j('/api/music')]),tr=Array.isArray(m)?m.length:0;
 const T=[['🖼','Photos',st.photos],['📁','Albums',st.albums],['🎵','Music tracks',tr],['💾','Photo storage',fsz(st.bytes)]],tips=[];
+const o=location.origin,LK=[['Standard frame',o+'/'],['Frame sign-in (username + PIN)',o+'/login?mode=frame'],['Lite frame (older iPads)',o+'/lite']].map(l=>`<div class=row2><span>${l[0]}<br><a href="${l[1]}">${l[1]}</a></span><button data-copy="${l[1]}">Copy</button></div>`).join('');
 if(!st.photos)tips.push(['#photos','Upload your first photos']);
 if(S.lat===''||S.lon==='')tips.push(['#display','Set a weather location so the overlay can show the weather']);
 if(S.music&&!tr)tips.push(['#storage','Music is on, but the BGM folder has no tracks yet']);
 $('#ov').innerHTML=`<h2>Overview</h2><div class=tiles>${T.map(t=>`<div class=tile><span>${t[0]} ${t[1]}</span><b>${t[2]}</b></div>`).join('')}</div>
-<div class=pg><div class=panel><h3>Quick actions</h3><a href="/" class=tip>▶ Open the frame</a><a href="#photos" class=tip>🖼 Upload photos</a><a href="#storage" class=tip>🎵 Add music</a></div>
+<div class=pg><div class=panel><h3>Quick actions</h3><a href="/" class=tip>▶ Open the standard frame</a><a href="/lite" class=tip>📱 Open the lite frame (older iPads)</a><a href="#photos" class=tip>🖼 Upload photos</a><a href="#storage" class=tip>🎵 Add music</a></div>
 <div class=panel><h3>Setup checklist</h3>${tips.length?tips.map(t=>`<a href="${t[0]}" class=tip>${t[1]}</a>`).join(''):'<p class=ok>✓ Everything looks good.</p>'}</div></div>
+<div class=panel style="margin-top:14px"><h3>Direct links to the frame</h3>${LK}</div>
 ${P.length?`<div class=panel style="margin-top:14px"><h3>Recently added</h3><div class=strip>${P.slice(0,10).map(p=>`<a href="#photos"><img src="/api/thumb/${p.id}" loading=lazy alt=""></a>`).join('')}</div></div>`:''}`}
 let li=0;
 function lbShow(k){const L=shown();if(!L.length)return;li=(k+L.length)%L.length;const p=L[li];$('#lbi').src='/api/photo/'+p.id;$('#lbc').textContent=(p.caption?p.caption+'  ·  ':'')+(li+1)+' / '+L.length}
 $('#lb').onclick=e=>{if(e.target.id=='lbp')lbShow(li-1);else if(e.target.id=='lbn')lbShow(li+1);else $('#lb').close()};
 addEventListener('keydown',e=>{if(!$('#lb').open)return;if(e.key=='ArrowLeft')lbShow(li-1);if(e.key=='ArrowRight')lbShow(li+1)});
 $('#th').onclick=()=>{const d=document.documentElement,c=d.dataset.theme||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark');d.dataset.theme=localStorage.theme=c=='dark'?'light':'dark'};
+$('#ov').onclick=e=>{const u=e.target.dataset.copy;if(!u)return;navigator.clipboard?navigator.clipboard.writeText(u).then(()=>toast('Link copied ✓')):prompt('Copy this link',u)};
 async function loadM(){const m=await j('/api/music');$('#tr').innerHTML=!Array.isArray(m)?'':m.length?`<small>${m.length} track${m.length==1?'':'s'}: ${m.map(x=>esc(x.name)).join(', ')}</small>`:'<small>No tracks found yet.</small>'}
 (async()=>{await loadS();loadM();await refresh();tab()})();
 </script></body></html>
