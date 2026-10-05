@@ -12,7 +12,7 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "cloudframe"
-database_id = "PASTE_D1_DATABASE_ID_HERE"  # D1 dashboard > cloudframe > Database ID
+database_id = "accdb62d-0954-402d-9d65-4a4ed0571896"  # D1 dashboard > cloudframe > Database ID
 
 [[r2_buckets]]
 binding = "BUCKET"
