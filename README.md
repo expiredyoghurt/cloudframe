@@ -8,6 +8,8 @@ A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + 
 - **Background music:** audio files (mp3, m4a, aac, ogg, wav, flac) in the `BGM/` folder of the R2 bucket. Music starts after the first tap; each device has a mute button.
 - **Storage tab:** browse the R2 bucket, upload audio files, make folders, play, download and delete from the browser. Photo files are hidden and protected there.
 - **Installable and offline:** installs as an app; photos are cached so the frame keeps cycling if the connection drops (music and weather need a connection).
+- **Lite frame** (`/lite`): a tiny page for older tablets (written for iPad 2 / iOS 9). Plain-form PIN sign-in, no modern JavaScript, weather and time supplied by the Worker. No music, offline cache or fullscreen. Add it to the Home Screen for a full-screen view.
+- **Direct links:** the admin Overview lists copyable links to the standard frame, the frame sign-in page and the lite frame.
 - **Admin:** Overview, Photos, Albums, Display, Storage; light/dark theme; settings save automatically.
 - **Login modes:** *Admin* (username + password + PIN) or *Open frame* (username + PIN, view-only, 90 days).
 - **Security:** credentials are Worker secrets; failed-login lockout (5 failures in 15 min locks for 30 min, configurable in `wrangler.toml`); HMAC-signed HttpOnly session cookies; CSP and security headers.
