@@ -1,0 +1,24 @@
+name = "cloudframe"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+not_found_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cloudframe"
+database_id = "PASTE_D1_DATABASE_ID_HERE"  # D1 dashboard > cloudframe > Database ID
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "cloudframe"
+
+[vars]
+MAX_FAILS = "5"            # failed logins before lockout
+FAIL_WINDOW_MINUTES = "15" # window in which failures are counted
+LOCK_MINUTES = "30"        # lockout duration
