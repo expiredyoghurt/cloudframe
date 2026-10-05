@@ -1,8 +1,10 @@
-# CloudFrame v1.1
+# CloudFrame v1.2
 A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + D1 + R2). Home/family use, protected by a username, password and 8-digit PIN.
 
 ## Features
 - **Frame screen** (`/`): fullscreen slideshow (fullscreen button, F key or double-click) with crossfade, swipe/arrow-key controls, album quick-switch, pause, fullscreen, wake-lock.
+- **Sleep mode:** during sleep hours (default 8pm-6am, set under Display; uses the Display timezone) the photos dim to 5% brightness (adjustable) and the overlay becomes a large centred clock with the time, day, date, weather, temperature and tomorrow's forecast. Works on the standard and lite frames.
+- **PSI (optional):** shows NEA's official 24-hour PSI (the readings published on haze.gov.sg) for the whole of Singapore or one region, with its band colour. The Worker reads it from data.gov.sg and caches it for 15 minutes. If you hit rate limits, add an optional `DATA_GOV_SG_API_KEY` secret.
 - **Overlay:** translucent rounded box with date, time, weather, temperature and photo info; on/off, one corner or split across all four corners, adjustable opacity.
 - **Photos and albums:** upload (photos over 4 megapixels are shrunk in the browser, smaller ones untouched), thumbnails, captions, bulk move/delete, choose which albums are shown.
 - **Short videos (up to 5 minutes):** upload videos like photos. In the browser they are checked, then compressed to 1080p H.264 MP4 at about 5 Mbps (real time, so a 5-minute clip takes about 5 minutes; keep the tab open and visible), then uploaded in 16 MB chunks. Videos already at or under 1080p and 6 Mbps are uploaded as they are, and browsers that can't record MP4 (e.g. Firefox) upload the original. On the frame they play to the end (or a max-seconds limit) and then cycle on; sound is off by default. A Display setting picks photos, videos or both, with a per-device switch on the frame. Videos are not cached offline.
