@@ -49,7 +49,7 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 .vb{position:absolute;top:14px;right:50px;background:#000b;color:#fff;border-radius:8px;padding:2px 8px;font-size:12px}
 .up{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}.up button{padding:10px 18px;font-weight:600}
 </style></head><body>
-<nav><div class=brand>📷 CloudFrame <small>v1.4</small></div>
+<nav><div class=brand>📷 CloudFrame <small>v1.5</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Media</span></a>
 <a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
@@ -186,13 +186,69 @@ $('#lo').onclick=async()=>{await fetch('/api/logout');await Promise.all((await c
 // ----- R2 storage browser
 let sp='BGM/';const enc=k=>k.split('/').map(encodeURIComponent).join('/'),AUD=/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)$/i;
 const fsz=s=>s>1e6?(s/1e6).toFixed(1)+' MB':Math.max(1,Math.ceil(s/1e3))+' KB';
-async function loadSt(){const d=await j('/api/storage?prefix='+encodeURIComponent(sp));if(d.error)return;const parts=sp.split('/').filter(Boolean);
+// ----- export photos & videos: browse by album folder, download one or many as a zip built in the browser
+let XP=[],XA=[],exSel=new Set(),lastPh='';
+// ZIPSTART
+const CT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=u=>{let c=-1;for(let i=0;i<u.length;i++)c=CT[(c^u[i])&255]^(c>>>8);return (c^-1)>>>0};
+const U16=n=>[n&255,(n>>8)&255],U32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];
+const dosDT=d=>{if(d.getFullYear()<1980)d=new Date(1980,0,1);return{t:(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),d:((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate()}};
+function Zip(){const parts=[],cd=[];let off=0;
+return{add(name,blob,crc,date){const nm=Array.from(new TextEncoder().encode(name)),sz=blob.size,t=dosDT(date),
+lh=new Uint8Array([...U32(0x04034b50),...U16(20),...U16(0x0800),...U16(0),...U16(t.t),...U16(t.d),...U32(crc),...U32(sz),...U32(sz),...U16(nm.length),...U16(0),...nm]);
+cd.push(new Uint8Array([...U32(0x02014b50),...U16(20),...U16(20),...U16(0x0800),...U16(0),...U16(t.t),...U16(t.d),...U32(crc),...U32(sz),...U32(sz),...U16(nm.length),...U16(0),...U16(0),...U16(0),...U16(0),...U32(0),...U32(off),...nm]));
+parts.push(lh,blob);off+=lh.length+sz},
+blob(){const c=new Blob(cd),eo=new Uint8Array([...U32(0x06054b50),...U16(0),...U16(0),...U16(cd.length),...U16(cd.length),...U32(c.size),...U32(off),...U16(0)]);return new Blob([...parts,c,eo],{type:'application/zip'})},
+size:()=>off,count:()=>cd.length}}
+const EXT={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','video/mp4':'mp4','video/quicktime':'mov','video/webm':'webm','video/x-m4v':'m4v'};
+const san=s=>String(s||'').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'').slice(0,80);
+const dayOf=p=>p.taken_at&&/^\d{4}-\d\d-\d\d$/.test(p.taken_at)?p.taken_at:new Date(p.uploaded_at).toISOString().slice(0,10);
+const nameOf=(p,ext)=>dayOf(p)+(san(p.caption)?'_'+san(p.caption):'')+'_'+p.id.slice(0,8)+(ext?'.'+ext:'');
+const folderOf=p=>p.album_id||'none';
+function folderNames(){const m={none:'Unsorted'},used={unsorted:1};XA.forEach(a=>{const n=san(a.name)||'Album';let k=n,i=2;while(used[k.toLowerCase()])k=n+' ('+i++ +')';used[k.toLowerCase()]=1;m[a.id]=k});return m}
+// ZIPEND
+const dlBlob=(b,n)=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),6e4)};
+async function getXP(){const[ps,al]=await Promise.all([j('/api/photos'),j('/api/albums')]);XP=Array.isArray(ps)?ps:[];XA=al.albums||[]}
+async function dlOne(id){const p=XP.find(x=>x.id==id);if(!p)return;toast('Preparing download…');
+const r=await fetch('/api/dl/'+id);if(!r.ok)return toast('Download failed');const b=await r.blob();dlBlob(b,nameOf(p,EXT[b.type]||(p.kind=='video'?'mp4':'jpg')))}
+async function doExport(kind){await getXP();const fn=folderNames();let list,root='',base;
+if(kind=='all'){list=XP;root='CloudFrame photos/';base='CloudFrame photos'}
+else if(kind=='sel'){list=XP.filter(p=>exSel.has(p.id));root='CloudFrame selection/';base='CloudFrame selection'}
+else{const a=kind.slice(6);list=XP.filter(p=>folderOf(p)==a);base='CloudFrame - '+(fn[a]||'Album')}
+if(!list.length)return toast('Nothing to download');
+const bar=$('#sbar'),prog=n=>{bar.style.display='block';$('#sbar i').style.width=(n/list.length*100)+'%'};
+let z=Zip(),part=1,n=0,bad=0;
+const flush=fin=>{if(!z.count())return;dlBlob(z.blob(),(part==1&&fin?base:base+' (part '+part+')')+'.zip');part++;z=Zip()};
+for(const p of list){$('#sst').textContent=`Preparing ${n+1} of ${list.length}… keep this tab open`;prog(n);
+try{const r=await fetch('/api/dl/'+p.id);if(!r.ok)throw 0;const b=await r.blob(),ext=EXT[b.type]||(p.kind=='video'?'mp4':'jpg');
+if(z.size()+b.size>1.8e9||z.count()>=60000)flush(false);
+const crc=crc32(new Uint8Array(await b.arrayBuffer()));
+z.add(root+fn[folderOf(p)]+'/'+nameOf(p,ext),b,crc,new Date(dayOf(p)+'T12:00:00'))}
+catch(e){bad++}n++}
+flush(true);prog(list.length);$('#sst').textContent=`Zipped ${list.length-bad} of ${list.length} files`+(bad?` (${bad} failed)`:'');
+setTimeout(()=>{bar.style.display='none';$('#sbar i').style.width=0},1500)}
+async function loadSt(){const ph=sp.startsWith('@photos');$('#sdz').style.display=ph?'none':'';$('#nf').parentElement.style.display=ph?'none':'';return ph?loadPh():loadStR2()}
+async function loadPh(){await getXP();const fn=folderNames(),aid=sp.split('/')[1],tot=XP.reduce((s,p)=>s+(p.bytes||0),0);
+if(sp!==lastPh){exSel.clear();lastPh=sp}
+if(!aid){const rows=[{id:'none'},...XA].map(a=>{const it=XP.filter(p=>folderOf(p)==a.id),b=it.reduce((s,p)=>s+(p.bytes||0),0);
+return `<div class=row><a href="#" data-go="@photos/${a.id}">📁 ${esc(fn[a.id])}</a><small>${it.length} item${it.length==1?'':'s'} · ${fsz(b)}</small><span></span><button data-exp="album:${a.id}">Download folder</button></div>`}).join('');
+$('#crumb').innerHTML='<a href="#" data-go="">Bucket</a> › Photos &amp; videos';
+$('#sl').innerHTML=`<p><button class=p data-exp="all">⬇ Download everything (zip, one folder per album)</button> <small>${XP.length} items · ${fsz(tot)}</small></p>`+rows;return}
+const it=XP.filter(p=>folderOf(p)==aid);
+$('#crumb').innerHTML=`<a href="#" data-go="">Bucket</a> › <a href="#" data-go="@photos">Photos &amp; videos</a> › ${esc(fn[aid]||'Album')}`;
+$('#sl').innerHTML=`<p><label><input type=checkbox id=xall> Select all</label> <button id=xsel data-exp="sel" disabled>Download selected</button> <button data-exp="album:${aid}">Download this folder</button></p>`
++(it.map(p=>`<div class=row><span style="display:flex;align-items:center;gap:10px"><input type=checkbox data-xs="${p.id}"${exSel.has(p.id)?' checked':''}><img src="/api/thumb/${p.id}" loading=lazy alt="" style="height:44px;width:58px;object-fit:cover;border-radius:6px"><span>${esc(nameOf(p))}</span></span><small>${fsz(p.bytes||0)} · ${dayOf(p)}</small><span>${p.kind=='video'?'▶ video':'photo'}</span><button data-dlone="${p.id}">⬇</button></div>`).join('')||'<small>This folder is empty.</small>');xs()}
+function xs(){const x=$('#xsel');if(x){x.disabled=!exSel.size;x.textContent='Download selected'+(exSel.size?' ('+exSel.size+')':'')}}
+$('#sl').onchange=e=>{const t=e.target;if(t.dataset.xs){t.checked?exSel.add(t.dataset.xs):exSel.delete(t.dataset.xs)}else if(t.id=='xall'){document.querySelectorAll('[data-xs]').forEach(c=>{c.checked=t.checked;t.checked?exSel.add(c.dataset.xs):exSel.delete(c.dataset.xs)})}xs()};
+async function loadStR2(){const d=await j('/api/storage?prefix='+encodeURIComponent(sp));if(d.error)return;const parts=sp.split('/').filter(Boolean);
 $('#crumb').innerHTML='<a href="#" data-go="">Bucket</a>'+parts.map((p,i)=>` › <a href="#" data-go="${esc(parts.slice(0,i+1).join('/')+'/')}">${esc(p)}</a>`).join('')+(sp=='BGM/'?' <small>(music for the frame)</small>':'');
-let h=d.folders.map(f=>`<div class=row><a href="#" data-go="${esc(f)}">📁 ${esc(f.slice(sp.length,-1))}</a><span></span><span></span><button data-sdel="${esc(f)}">Delete</button></div>`).join('')
+let h=(sp===''?`<div class=row><a href="#" data-go="@photos">📷 Photos &amp; videos</a><small>organised by album</small><span></span><button data-exp="all">Download all</button></div>`:'')+d.folders.map(f=>`<div class=row><a href="#" data-go="${esc(f)}">📁 ${esc(f.slice(sp.length,-1))}</a><span></span><span></span><button data-sdel="${esc(f)}">Delete</button></div>`).join('')
 +d.files.map(f=>`<div class=row><span>${esc(f.name)}</span><small>${fsz(f.size)} · ${new Date(f.uploaded).toLocaleDateString()}</small><span>${AUD.test(f.name)?`<button data-play="${esc(f.key)}">▶</button> `:''}<a href="/api/storage/${enc(f.key)}" download="${esc(f.name)}">⬇</a></span><button data-sdel="${esc(f.key)}">Delete</button></div>`).join('');
-if(!h)h='<small>This folder is empty.</small>';if(d.hidden)h+=`<p><small>${d.hidden} photo file(s) are hidden here; manage them in the Photos tab.</small></p>`;if(d.more)h+='<p><small>Listing truncated.</small></p>';$('#sl').innerHTML=h}
-$('#v-storage').onclick=async e=>{const t=e.target.closest('[data-go],[data-sdel],[data-play]');if(!t)return;e.preventDefault();
-if(t.dataset.go!==undefined){sp=t.dataset.go;loadSt()}
+if(!h)h='<small>This folder is empty.</small>';if(d.hidden)h+=`<p><small>Photo and video files are listed under Photos &amp; videos.</small></p>`;if(d.more)h+='<p><small>Listing truncated.</small></p>';$('#sl').innerHTML=h}
+$('#v-storage').onclick=async e=>{const t=e.target.closest('[data-go],[data-sdel],[data-play],[data-dlone],[data-exp]');if(!t)return;e.preventDefault();
+if(t.dataset.dlone){dlOne(t.dataset.dlone)}
+else if(t.dataset.exp){doExport(t.dataset.exp)}
+else if(t.dataset.go!==undefined){sp=t.dataset.go;loadSt()}
 else if(t.dataset.play){const a=$('#pa');a.hidden=false;a.src='/api/storage/'+enc(t.dataset.play);a.play().catch(()=>{})}
 else if(await ask(`Delete ${t.dataset.sdel}?`)){await j('/api/storage/'+enc(t.dataset.sdel),{method:'DELETE'});toast('Deleted');loadSt();loadM()}};
 $('#nfb').onclick=async()=>{const n=$('#nf').value.trim().replace(/^\/+|\/+$/g,'');if(!n)return;const d=await j('/api/storage/folder',body({path:sp+n+'/'}));if(!d.error){$('#nf').value='';toast('Folder created');loadSt()}};
