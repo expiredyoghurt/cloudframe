@@ -161,7 +161,7 @@ async function route(req, env) {
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
-  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.4' });
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.5' });
   const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/api/nowcast' || p === '/api/uv' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
   if (sc === 'f' && !viewOk && p !== '/api/logout')
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
@@ -195,7 +195,7 @@ async function route(req, env) {
   }
 
   if (p === '/api/photos' && m === 'GET')
-    return json((await env.DB.prepare('SELECT id,album_id,kind,duration,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results);
+    return json((await env.DB.prepare('SELECT id,album_id,kind,duration,bytes,uploaded_at,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results);
   if (p === '/api/photos' && m === 'POST') {
     const fd = await req.formData().catch(() => null), f = fd?.get('file');
     if (!f || typeof f === 'string') return json({ error: 'No file' }, 400);
@@ -252,6 +252,12 @@ async function route(req, env) {
       .bind(b.id, aid, d, String(b.mime || '').slice(0, 40), String(b.taken_at || '').slice(0, 10), num(b.w, 0), num(b.h, 0), obj.size, Date.now()).run();
     return json({ id: b.id });
   }
+  const dm = p.match(/^\/api\/dl\/([0-9a-f-]{36})$/); // full-size download for the admin export (not cached by the service worker)
+  if (dm && m === 'GET') {
+    const o = await env.BUCKET.get(dm[1]);
+    if (!o) return json({ error: 'Not found' }, 404);
+    return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata?.contentType || 'application/octet-stream', 'Content-Length': String(o.size), 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment' } });
+  }
   const vm = p.match(/^\/api\/video\/([0-9a-f-]{36})$/);
   if (vm && m === 'GET') {
     const o = await env.BUCKET.get(vm[1], { range: req.headers });
@@ -270,7 +276,7 @@ async function route(req, env) {
   if (p === '/api/psi' && m === 'GET') return json(await psiFor(await getSettings(env), env));
   if (p === '/api/lite' && m === 'GET') { // everything the lite frame needs in one small response
     const S = await getSettings(env), hid = S.hide_albums || [];
-    const rows = (await env.DB.prepare('SELECT id,album_id,kind,duration,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
+    const rows = (await env.DB.prepare('SELECT id,album_id,kind,duration,bytes,uploaded_at,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
       .filter(r => !hid.includes(r.album_id || 'none') && (r.kind === 'video' ? (S.lite_videos && S.content !== 'photos') : S.content !== 'videos'))
       .map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at, kind: r.kind, duration: r.duration }));
     const { hide_albums, music, music_volume, music_shuffle, lat, lon, tz, ...pub } = S;
