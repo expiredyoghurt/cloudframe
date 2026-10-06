@@ -1,4 +1,4 @@
-# CloudFrame v1.4
+# CloudFrame v1.5
 A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + D1 + R2). Home/family use, protected by a username, password and 8-digit PIN.
 
 ## Features
@@ -15,6 +15,7 @@ A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + 
 - **Short videos (up to 5 minutes):** upload videos like photos. In the browser they are checked, then compressed to 1080p H.264 MP4 at about 5 Mbps (real time, so a 5-minute clip takes about 5 minutes; keep the tab open and visible), then uploaded in 16 MB chunks. Videos already at or under 1080p and 6 Mbps are uploaded as they are, and browsers that can't record MP4 (e.g. Firefox) upload the original. On the frame they play to the end (or a max-seconds limit) and then cycle on; sound is off by default. A Display setting picks photos, videos or both, with a per-device switch on the frame. Videos are not cached offline.
 - **Background music:** audio files (mp3, m4a, aac, ogg, wav, flac) in the `BGM/` folder of the R2 bucket. Music starts after the first tap; each device has a mute button.
 - **Storage tab:** browse the R2 bucket, upload audio files, make folders, play, download and delete from the browser. Photo files are hidden and protected there.
+- **Photo export:** in Admin > Storage, open *Photos & videos* to browse your albums as folders, download any single item, or download selected items, one album, or everything as a zip that keeps the album folders. Files are named date_caption_id (original filenames aren't kept). Zips are built in your browser (keep the tab open) and split into parts of about 1.8 GB.
 - **Installable and offline:** installs as an app; photos are cached so the frame keeps cycling if the connection drops (music and weather need a connection).
 - **Lite frame** (`/lite`): a tiny page for older tablets (written for iPad 2 / iOS 9). Plain-form PIN sign-in, no modern JavaScript, weather and time supplied by the Worker. No music or offline cache. Its Fullscreen button works where the browser allows it; iOS 9 doesn't, so add the page to the Home Screen instead (the button explains how).
 - **Direct links:** the admin Overview lists copyable links to the standard frame, the frame sign-in page and the lite frame.
