@@ -161,7 +161,7 @@ async function route(req, env) {
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
-  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.5' });
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.6' });
   const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/api/nowcast' || p === '/api/uv' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
   if (sc === 'f' && !viewOk && p !== '/api/logout')
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
