@@ -48,8 +48,10 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 .row2{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.row2 a{color:var(--ac);word-break:break-all;font-size:13px}
 .vb{position:absolute;top:14px;right:50px;background:#000b;color:#fff;border-radius:8px;padding:2px 8px;font-size:12px}
 .up{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}.up button{padding:10px 18px;font-weight:600}
+.del{position:absolute;top:50px;right:14px;min-height:0;padding:3px 9px;opacity:0;background:#000b;color:#fff;border:0}figure:hover .del,.del:focus{opacity:1}@media(hover:none){.del{opacity:1}}
+#lbd{position:fixed;top:14px;right:14px;background:#000b;color:#fff;border:0}
 </style></head><body>
-<nav><div class=brand>📷 CloudFrame <small>v1.5</small></div>
+<nav><div class=brand>📷 CloudFrame <small>v1.6</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Media</span></a>
 <a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
@@ -63,7 +65,7 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div id=dz>Drop photos or videos here, or click to choose<br><small>Photos over 4 megapixels are shrunk automatically. Videos (up to 5 minutes) are compressed to 1080p in your browser before uploading, which takes about as long as the video: keep this tab open and visible.</small></div>
 <input type=file id=f accept="image/jpeg,image/png,image/webp,video/*" multiple hidden>
 <div id=bar><i></i></div><div id=st></div>
-<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><label>Type <select id=ft><option value="">Photos &amp; videos</option><option value=photo>Photos</option><option value=video>Videos</option></select></label><button id=sa>Select all shown</button>
+<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><label>Type <select id=ft><option value="">Photos &amp; videos</option><option value=photo>Photos</option><option value=video>Videos</option></select></label><button id=sa>Select all shown</button> <small>Click photos to select them, then move or delete them. 🗑 on a photo deletes just that one.</small>
 <div id=bb hidden><b id=bc></b> &nbsp; <select id=bm></select> <button id=bmv class=p>Move</button> <button id=bdl>Delete</button> <button id=bx>Clear</button></div>
 <div class=grid id=g></div></div>
 <div class=v id=v-display><form id=sf>
@@ -113,7 +115,7 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div><input id=nf placeholder="New folder name"> <button id=nfb>Create folder</button></div>
 <div id=sl></div></div>
 </main>
-<dialog id=lb><img id=lbi alt=''><video id=lbv controls playsinline style="display:none;max-width:94vw;max-height:80vh;border-radius:10px;margin:auto"></video><div id=lbc></div><button id=lbp>‹</button><button id=lbn>›</button></dialog>
+<dialog id=lb><img id=lbi alt=''><video id=lbv controls playsinline style="display:none;max-width:94vw;max-height:80vh;border-radius:10px;margin:auto"></video><div id=lbc></div><button id=lbp>‹</button><button id=lbn>›</button><button id=lbd>🗑 Delete</button></dialog>
 <dialog id=dg><p id=dm></p><form method=dialog><button value=0>Cancel</button> <button value=1 class=p>OK</button></form></dialog><div id=ts></div>
 <script>
 const $=s=>document.querySelector(s),JH={'Content-Type':'application/json'};let tt,A=[],U=0,UC=null,S={},P=[];const sel=new Set();
@@ -154,15 +156,15 @@ if(t.id=='ab'){const n=$('#an').value.trim();if(n){await j('/api/albums',body({n
 // ----- photos
 async function loadP(){P=await j('/api/photos');rP()}
 const shown=()=>{const f=$('#fa').value||'all';const t=$('#ft').value;return P.filter(p=>(f=='all'||(p.album_id||'none')==f)&&(!t||(t=='video')==(p.kind=='video')))};
-function rP(){$('#g').innerHTML=shown().map(p=>`<figure data-id="${p.id}"${sel.has(p.id)?' class=sel':''}><img loading=lazy src="/api/thumb/${p.id}">${p.kind=='video'?`<span class=vb>▶ ${fd(p.duration||0)}</span>`:''}<button class=zoom data-z="${p.id}" title="View full size">⤢</button><input data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="Caption"></figure>`).join('')||'<small>No photos here.</small>';bar()}
+function rP(){$('#g').innerHTML=shown().map(p=>`<figure data-id="${p.id}"${sel.has(p.id)?' class=sel':''}><img loading=lazy src="/api/thumb/${p.id}">${p.kind=='video'?`<span class=vb>▶ ${fd(p.duration||0)}</span>`:''}<button class=zoom data-z="${p.id}" title="View full size">⤢</button><button class=del data-d1="${p.id}" title="Delete">🗑</button><input data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="Caption"></figure>`).join('')||'<small>No photos here.</small>';bar()}
 const bar=()=>{$('#bb').hidden=!sel.size;$('#bc').textContent=sel.size+' selected'};
 const refresh=async()=>{await loadA();await loadP()};
 $('#fa').onchange=rP;$('#ft').onchange=rP;
-$('#g').onclick=e=>{if(e.target.dataset.z){lbShow(shown().findIndex(p=>p.id==e.target.dataset.z));$('#lb').showModal();return}if(e.target.tagName=='INPUT')return;const f=e.target.closest('figure');if(!f)return;const id=f.dataset.id;sel.has(id)?sel.delete(id):sel.add(id);f.classList.toggle('sel');bar()};
+$('#g').onclick=e=>{if(e.target.dataset.d1){delPhotos([e.target.dataset.d1]);return}if(e.target.dataset.z){lbShow(shown().findIndex(p=>p.id==e.target.dataset.z));$('#lb').showModal();return}if(e.target.tagName=='INPUT')return;const f=e.target.closest('figure');if(!f)return;const id=f.dataset.id;sel.has(id)?sel.delete(id):sel.add(id);f.classList.toggle('sel');bar()};
 $('#g').onchange=async e=>{if(e.target.dataset.cap){await j('/api/photos/'+e.target.dataset.cap,body({caption:e.target.value},'PATCH'));toast('Saved ✓')}};
 $('#sa').onclick=()=>{shown().forEach(p=>sel.add(p.id));rP()};$('#bx').onclick=()=>{sel.clear();rP()};
 $('#bmv').onclick=async()=>{await j('/api/photos/bulk',body({ids:[...sel],action:'move',album_id:$('#bm').value}));toast('Moved ✓');sel.clear();refresh()};
-$('#bdl').onclick=async()=>{if(await ask(`Delete ${sel.size} photo(s) permanently?`)){await j('/api/photos/bulk',body({ids:[...sel],action:'delete'}));sel.clear();refresh()}};
+$('#bdl').onclick=()=>delPhotos([...sel]);
 // ----- upload (resize to 4MP, thumbnail, progress)
 const MAX=4e6;
 async function prep(f){const b=await createImageBitmap(f,{imageOrientation:'from-image'}),px=b.width*b.height;let file=f,w=b.width,h=b.height;
@@ -227,6 +229,11 @@ z.add(root+fn[folderOf(p)]+'/'+nameOf(p,ext),b,crc,new Date(dayOf(p)+'T12:00:00'
 catch(e){bad++}n++}
 flush(true);prog(list.length);$('#sst').textContent=`Zipped ${list.length-bad} of ${list.length} files`+(bad?` (${bad} failed)`:'');
 setTimeout(()=>{bar.style.display='none';$('#sbar i').style.width=0},1500)}
+// delete photos/videos (single or many) from R2 and the database; used by the Media tab and Storage > Photos & videos
+async function delPhotos(ids){if(!ids.length)return;
+if(!await ask(`Permanently delete ${ids.length} item${ids.length==1?'':'s'}? They will be removed from the frame and can't be recovered.`))return;
+let n=0;for(let i=0;i<ids.length;i+=200){const d=await j('/api/photos/bulk',body({ids:ids.slice(i,i+200),action:'delete'}));if(d.error)break;n+=d.n}
+ids.forEach(i=>{sel.delete(i);exSel.delete(i)});toast(`Deleted ${n} item${n==1?'':'s'}`);await refresh();if(location.hash=='#storage')loadSt()}
 async function loadSt(){const ph=sp.startsWith('@photos');$('#sdz').style.display=ph?'none':'';$('#nf').parentElement.style.display=ph?'none':'';return ph?loadPh():loadStR2()}
 async function loadPh(){await getXP();const fn=folderNames(),aid=sp.split('/')[1],tot=XP.reduce((s,p)=>s+(p.bytes||0),0);
 if(sp!==lastPh){exSel.clear();lastPh=sp}
@@ -236,17 +243,19 @@ $('#crumb').innerHTML='<a href="#" data-go="">Bucket</a> › Photos &amp; videos
 $('#sl').innerHTML=`<p><button class=p data-exp="all">⬇ Download everything (zip, one folder per album)</button> <small>${XP.length} items · ${fsz(tot)}</small></p>`+rows;return}
 const it=XP.filter(p=>folderOf(p)==aid);
 $('#crumb').innerHTML=`<a href="#" data-go="">Bucket</a> › <a href="#" data-go="@photos">Photos &amp; videos</a> › ${esc(fn[aid]||'Album')}`;
-$('#sl').innerHTML=`<p><label><input type=checkbox id=xall> Select all</label> <button id=xsel data-exp="sel" disabled>Download selected</button> <button data-exp="album:${aid}">Download this folder</button></p>`
-+(it.map(p=>`<div class=row><span style="display:flex;align-items:center;gap:10px"><input type=checkbox data-xs="${p.id}"${exSel.has(p.id)?' checked':''}><img src="/api/thumb/${p.id}" loading=lazy alt="" style="height:44px;width:58px;object-fit:cover;border-radius:6px"><span>${esc(nameOf(p))}</span></span><small>${fsz(p.bytes||0)} · ${dayOf(p)}</small><span>${p.kind=='video'?'▶ video':'photo'}</span><button data-dlone="${p.id}">⬇</button></div>`).join('')||'<small>This folder is empty.</small>');xs()}
-function xs(){const x=$('#xsel');if(x){x.disabled=!exSel.size;x.textContent='Download selected'+(exSel.size?' ('+exSel.size+')':'')}}
+$('#sl').innerHTML=`<p><label><input type=checkbox id=xall> Select all</label> <button id=xsel data-exp="sel" disabled>Download selected</button> <button id=xdel data-delsel disabled>Delete selected</button> <button data-exp="album:${aid}">Download this folder</button></p>`
++(it.map(p=>`<div class=row><span style="display:flex;align-items:center;gap:10px"><input type=checkbox data-xs="${p.id}"${exSel.has(p.id)?' checked':''}><img src="/api/thumb/${p.id}" loading=lazy alt="" style="height:44px;width:58px;object-fit:cover;border-radius:6px"><span>${esc(nameOf(p))}</span></span><small>${fsz(p.bytes||0)} · ${dayOf(p)}</small><span>${p.kind=='video'?'▶ video':'photo'}</span><span style="white-space:nowrap"><button data-dlone="${p.id}" title="Download">⬇</button> <button data-delone="${p.id}" title="Delete">🗑</button></span></div>`).join('')||'<small>This folder is empty.</small>');xs()}
+function xs(){const x=$('#xsel'),d=$('#xdel');if(x){x.disabled=!exSel.size;x.textContent='Download selected'+(exSel.size?' ('+exSel.size+')':'')}if(d){d.disabled=!exSel.size;d.textContent='Delete selected'+(exSel.size?' ('+exSel.size+')':'')}}
 $('#sl').onchange=e=>{const t=e.target;if(t.dataset.xs){t.checked?exSel.add(t.dataset.xs):exSel.delete(t.dataset.xs)}else if(t.id=='xall'){document.querySelectorAll('[data-xs]').forEach(c=>{c.checked=t.checked;t.checked?exSel.add(c.dataset.xs):exSel.delete(c.dataset.xs)})}xs()};
 async function loadStR2(){const d=await j('/api/storage?prefix='+encodeURIComponent(sp));if(d.error)return;const parts=sp.split('/').filter(Boolean);
 $('#crumb').innerHTML='<a href="#" data-go="">Bucket</a>'+parts.map((p,i)=>` › <a href="#" data-go="${esc(parts.slice(0,i+1).join('/')+'/')}">${esc(p)}</a>`).join('')+(sp=='BGM/'?' <small>(music for the frame)</small>':'');
 let h=(sp===''?`<div class=row><a href="#" data-go="@photos">📷 Photos &amp; videos</a><small>organised by album</small><span></span><button data-exp="all">Download all</button></div>`:'')+d.folders.map(f=>`<div class=row><a href="#" data-go="${esc(f)}">📁 ${esc(f.slice(sp.length,-1))}</a><span></span><span></span><button data-sdel="${esc(f)}">Delete</button></div>`).join('')
 +d.files.map(f=>`<div class=row><span>${esc(f.name)}</span><small>${fsz(f.size)} · ${new Date(f.uploaded).toLocaleDateString()}</small><span>${AUD.test(f.name)?`<button data-play="${esc(f.key)}">▶</button> `:''}<a href="/api/storage/${enc(f.key)}" download="${esc(f.name)}">⬇</a></span><button data-sdel="${esc(f.key)}">Delete</button></div>`).join('');
 if(!h)h='<small>This folder is empty.</small>';if(d.hidden)h+=`<p><small>Photo and video files are listed under Photos &amp; videos.</small></p>`;if(d.more)h+='<p><small>Listing truncated.</small></p>';$('#sl').innerHTML=h}
-$('#v-storage').onclick=async e=>{const t=e.target.closest('[data-go],[data-sdel],[data-play],[data-dlone],[data-exp]');if(!t)return;e.preventDefault();
+$('#v-storage').onclick=async e=>{const t=e.target.closest('[data-go],[data-sdel],[data-play],[data-dlone],[data-exp],[data-delone],[data-delsel]');if(!t)return;e.preventDefault();
 if(t.dataset.dlone){dlOne(t.dataset.dlone)}
+else if(t.dataset.delone){delPhotos([t.dataset.delone])}
+else if(t.dataset.delsel!==undefined){delPhotos([...exSel])}
 else if(t.dataset.exp){doExport(t.dataset.exp)}
 else if(t.dataset.go!==undefined){sp=t.dataset.go;loadSt()}
 else if(t.dataset.play){const a=$('#pa');a.hidden=false;a.src='/api/storage/'+enc(t.dataset.play);a.play().catch(()=>{})}
@@ -275,7 +284,7 @@ $('#ov').innerHTML=`<h2>Overview</h2><div class=tiles>${T.map(t=>`<div class=til
 ${P.length?`<div class=panel style="margin-top:14px"><h3>Recently added</h3><div class=strip>${P.slice(0,10).map(p=>`<a href="#photos"><img src="/api/thumb/${p.id}" loading=lazy alt=""></a>`).join('')}</div></div>`:''}`}
 let li=0;
 function lbShow(k){const L=shown();if(!L.length)return;li=(k+L.length)%L.length;const p=L[li];const vd=p.kind=='video',v=$('#lbv');$('#lbi').style.display=vd?'none':'block';v.style.display=vd?'block':'none';v.pause();if(vd){v.src='/api/video/'+p.id;v.play().catch(()=>{})}else $('#lbi').src='/api/photo/'+p.id;$('#lbc').textContent=(p.caption?p.caption+'  ·  ':'')+(li+1)+' / '+L.length}
-$('#lb').onclick=e=>{if(e.target.id=='lbp')lbShow(li-1);else if(e.target.id=='lbn')lbShow(li+1);else if(e.target.tagName!='VIDEO')$('#lb').close()};
+$('#lb').onclick=e=>{if(e.target.id=='lbp')lbShow(li-1);else if(e.target.id=='lbn')lbShow(li+1);else if(e.target.id=='lbd'){const q=shown()[li];$('#lb').close();if(q)delPhotos([q.id])}else if(e.target.tagName!='VIDEO')$('#lb').close()};
 $('#lb').addEventListener('close',()=>$('#lbv').pause());
 addEventListener('keydown',e=>{if(!$('#lb').open)return;if(e.key=='ArrowLeft')lbShow(li-1);if(e.key=='ArrowRight')lbShow(li+1)});
 $('#th').onclick=()=>{const d=document.documentElement,c=d.dataset.theme||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark');d.dataset.theme=localStorage.theme=c=='dark'?'light':'dark'};
