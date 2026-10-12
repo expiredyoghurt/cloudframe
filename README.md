@@ -1,7 +1,8 @@
-# CloudFrame v1.6
+# CloudFrame v1.7
 A digital photo frame for any tablet or laptop, running on Cloudflare (Worker + D1 + R2). Home/family use, protected by a username, password and 8-digit PIN.
 
 ## Features
+- **Frame controls:** a short bar (previous, pause, next, fullscreen, More) that fits any screen, with the album/content pickers, music, Lite/Admin and Log out in a scrollable More panel. It respects the iPhone/iPad home-indicator safe area, stays up longer on touch screens, and the More panel closes itself after 12 seconds.
 - **Frame screen** (`/`): fullscreen slideshow (fullscreen button, F key or double-click) with crossfade, swipe/arrow-key controls, album quick-switch, pause, fullscreen, wake-lock.
 - **Sleep mode:** during sleep hours (default 8pm-6am, set under Display; uses the Display timezone) the photos dim to 5% brightness (adjustable) and the overlay becomes a large centred clock with the time, day, date, weather, temperature and tomorrow's forecast. Works on the standard and lite frames.
 - **Music off at night:** a Sleep mode toggle (on by default) pauses the music during sleep hours and resumes it afterwards.

@@ -8,15 +8,16 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Helve
 .b{position:absolute;margin:20px;padding:12px 18px;border-radius:18px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);max-width:44%;-webkit-backdrop-filter:blur(6px)}
 .tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}
 .t{font-size:44px;font-weight:bold;line-height:1.1}.m{font-size:18px}
-#cb{position:fixed;left:50%;bottom:20px;-webkit-transform:translateX(-50%);transform:translateX(-50%);display:none;background:rgba(0,0,0,.65);border-radius:14px;padding:8px;white-space:nowrap;z-index:9}
-#cb button,#cb a{display:inline-block;margin:0 3px;padding:9px 14px;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:#fff;font:16px Helvetica,Arial,sans-serif;text-decoration:none}
+#cb{position:fixed;left:0;right:0;bottom:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);display:none;text-align:center;z-index:9}
+.ln{text-align:center;margin-top:8px}.ln>div{display:inline-block;background:rgba(0,0,0,.65);border-radius:14px;padding:6px;max-width:92%}
+#cb button,#cb a{display:inline-block;margin:3px;padding:12px 14px;min-height:44px;box-sizing:border-box;border:0;border-radius:9px;background:rgba(255,255,255,.18);color:#fff;font:16px Helvetica,Arial,sans-serif;text-decoration:none}
 #hint{display:none;position:fixed;left:20px;right:20px;bottom:90px;padding:12px 16px;border-radius:12px;background:rgba(0,0,0,.75);color:#fff;font:16px Helvetica,Arial,sans-serif;text-align:center;z-index:10}
 #dim{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;-webkit-transition:opacity 3s;transition:opacity 3s;z-index:1}#ov .b{z-index:2}
 .c{left:50%;top:50%;margin:0;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);max-width:90%;text-align:center;padding:3vmin 5vmin}.c .t{font-size:17vmin}.c .m{font-size:4.2vmin}
 .c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:3.4vmin}.pd{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:6px}
 </style><style id=dyn></style></head><body>
 <div class=s id=a></div><div class=s id=b></div><video class=s id=vd playsinline muted></video><div id=dim></div><div id=ov></div>
-<div id=cb><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><button id=fs>Fullscreen</button><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div>
+<div id=cb><div class=ln id=mpl style="display:none"><div><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div></div><div class=ln><div><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><button id=fs>Full screen</button><button id=mo>More</button></div></div></div>
 <div id=hint>Fullscreen is not available in this browser. Tap Share, then Add to Home Screen, and open CloudFrame Lite from your Home Screen for a full-screen view.</div>
 <script>
 var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,PSI=null,NC=null,UV=null,lk=0,UC={'Low':'#4cc38a','Moderate':'#f5d33f','High':'#f59e42','Very high':'#ef5350','Extreme':'#a06cd5'},PC={'Good':'#4cc38a','Moderate':'#4da3ff','Unhealthy':'#f5d33f','Very unhealthy':'#f59e42','Hazardous':'#ef5350'},off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
@@ -73,11 +74,18 @@ v.oncanplay=function(){v.oncanplay=null;if(!vidA)return;$('a').className='s';$('
 v.onended=skipV;v.onerror=skipV;
 vT=[setTimeout(function(){if(vidA&&v.currentTime<.1)skipV()},9000),setTimeout(skipV,(S.video_max>0&&S.video_max<p.duration?S.video_max+2:p.duration+10)*1000)];v.load()}
 function loop(){clearTimeout(T);T=setTimeout(function(){if(!paused&&!vidA)show(i+1);loop()},(S.interval||15)*1000)}
-function ui(){$('cb').style.display='block';clearTimeout(UT);UT=setTimeout(function(){$('cb').style.display='none'},4000)}
+var PT=null;
+function inBar(n){while(n){if(n.id==='cb')return true;n=n.parentNode}return false}
+function closeMp(){$('mpl').style.display='none';ui()}
+function ui(){$('cb').style.display='block';clearTimeout(UT);clearTimeout(PT);
+if($('mpl').style.display==='block')PT=setTimeout(closeMp,12000);
+UT=setTimeout(function(){if($('mpl').style.display!=='block')$('cb').style.display='none'},6000)}
 document.onclick=function(e){var id=e.target.id;
 if(id==='nx'){show(i+1);loop();ui()}else if(id==='pv'){show(i-1);loop();ui()}
 else if(id==='pp'){paused=!paused;e.target.innerHTML=paused?'&#9654;':'&#10074;&#10074;';ui()}
 else if(id==='fs'){fsToggle();ui()}
+else if(id==='mo'){$('mpl').style.display=$('mpl').style.display==='block'?'none':'block';ui()}
+else if($('mpl').style.display==='block'&&!inBar(e.target))closeMp();
 else if(e.target.tagName!=='A')ui()};
 var de=document.documentElement;
 function fsOn(){return document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement}

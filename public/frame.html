@@ -1,23 +1,25 @@
-<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>CloudFrame</title>
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>CloudFrame</title>
 <link rel=manifest href=/manifest.webmanifest><meta name=theme-color content="#000000"><link rel=icon href=/icon.svg><link rel=apple-touch-icon href=/icon.svg><meta name=apple-mobile-web-app-capable content=yes><meta name=mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-title content=CloudFrame>
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,sans-serif;cursor:none}body.ui{cursor:default}
 .s{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1.5s}.s.on{opacity:1}
 .b{position:absolute;margin:3vmin;padding:calc(1.6vmin*var(--k,1)) calc(2.2vmin*var(--k,1));border-radius:calc(2.4vmin*var(--k,1));background:rgba(0,0,0,var(--o,.35));
 backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;text-shadow:0 1px 3px #0008;max-width:calc(42vw*var(--k,1))}
-.tl{top:0;left:0}.tr{top:0;right:0;text-align:right}.bl{bottom:0;left:0}.br{bottom:0;right:0;text-align:right}
+.tl{top:0;left:0;top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px)}.tr{top:0;right:0;text-align:right;top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px)}.bl{bottom:0;left:0;bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px)}.br{bottom:0;right:0;text-align:right;bottom:env(safe-area-inset-bottom,0px);right:env(safe-area-inset-right,0px)}
 .t{font-size:calc(5vmin*var(--k,1));font-weight:600;line-height:1.15}.m{font-size:calc(2.2vmin*var(--k,1));opacity:.92}
-#cb{position:fixed;left:50%;bottom:2.5vmin;transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:8px 10px;border-radius:16px;
-background:rgba(0,0,0,.6);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
+#cb{position:fixed;left:50%;bottom:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;width:max-content;max-width:calc(100vw - 24px);max-width:calc(100vw - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
 body.ui #cb{opacity:1;pointer-events:auto}
-#cb>*,#mg>*{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer}
+#cr,#mp{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;padding:8px 10px;border-radius:16px;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);max-width:100%;box-sizing:border-box}
+#mp{max-height:calc(100vh - 110px);max-height:calc(100dvh - 110px - env(safe-area-inset-bottom,0px));overflow-y:auto}
+#cr button,#mp>*,#mg>*{min-height:44px;min-width:44px;box-sizing:border-box;background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+#cb [hidden]{display:none!important}#mt:empty{display:none}
 #mg{display:contents}#mg[hidden]{display:none}#mv{width:90px;padding:0;min-height:0;vertical-align:middle}#mt{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
 #dim{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;transition:opacity 3s;z-index:1}#ov .b{z-index:2}
 .c{left:50%;top:50%;margin:0;transform:translate(-50%,-50%);max-width:90vw;text-align:center;padding:calc(3.5vmin*var(--k,1)) calc(6vmin*var(--k,1))}.c .t{font-size:calc(17vmin*var(--k,1))}.c .m{font-size:calc(4.4vmin*var(--k,1))}
 .c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:calc(3.6vmin*var(--k,1));opacity:.92}.pd{display:inline-block;width:.7em;height:.7em;border-radius:50%;margin-right:.4em}
 </style></head><body>
 <img class=s id=a alt=""><img class=s id=b alt=""><video class=s id=vd playsinline muted preload=auto></video><div id=dim></div><div id=ov></div>
-<div id=cb><button id=pv>‹</button><button id=pp>❚❚</button><button id=nx>›</button><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><button id=fs title="Fullscreen (F)">⛶</button><span id=lx hidden></span><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div>
+<div id=cb><div id=mp hidden><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><span id=lx hidden></span><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div><div id=cr><button id=pv aria-label=Previous>‹</button><button id=pp aria-label=Pause>❚❚</button><button id=nx aria-label=Next>›</button><button id=fs title="Fullscreen (F)">⛶</button><button id=mo aria-label=More aria-expanded=false>⋯</button></div></div>
 <script>
 let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='',musicOff=false,lux=null,ls=null,lsTried=false,NC=null,UV=null,nct=0,uvt=0,nck='';
 const $=id=>document.getElementById(id);
@@ -92,7 +94,13 @@ if(paused)return;const pr=v.play();pr&&pr.catch&&pr.catch(()=>{v.muted=true;v.pl
 v.onended=skipV;v.onerror=skipV;
 vT=[setTimeout(()=>{if(vidActive&&v.currentTime<.1&&!paused)skipV()},9000),setTimeout(skipV,(S.video_max>0&&S.video_max<p.duration?S.video_max+2:p.duration+10)*1e3)]}
 // controls
-const showUI=()=>{document.body.classList.add('ui');clearTimeout(ut);ut=setTimeout(()=>document.body.classList.remove('ui'),3e3)};
+let pt2;
+const closeMp=()=>{$('mp').hidden=true;$('mo').setAttribute('aria-expanded','false');showUI()};
+const showUI=()=>{document.body.classList.add('ui');clearTimeout(ut);clearTimeout(pt2);
+if(!$('mp').hidden)pt2=setTimeout(()=>{['fa','ct'].includes(document.activeElement.id)?showUI():closeMp()},12e3); // More panel closes itself after 12 s
+ut=setTimeout(()=>{if($('mp').hidden)document.body.classList.remove('ui')},matchMedia('(hover:none)').matches?6e3:3e3)};
+$('mo').onclick=()=>{const o=$('mp').hidden;$('mp').hidden=!o;$('mo').setAttribute('aria-expanded',String(o));showUI()};
+addEventListener('pointerdown',e=>{if(!$('mp').hidden&&!e.target.closest('#cb'))closeMp()});
 ['pointermove','pointerdown'].forEach(e=>addEventListener(e,showUI));
 const de=document.documentElement,fsOn=()=>document.fullscreenElement||document.webkitFullscreenElement,fsCan=!!(de.requestFullscreen||de.webkitRequestFullscreen);
 const fsT=()=>{if(!fsCan)return alert('Fullscreen is not available in this browser. On iPad or iPhone, use Share > Add to Home Screen and open CloudFrame from the Home Screen.');
@@ -104,7 +112,7 @@ $('nx').onclick=()=>{next();loop()};$('pv').onclick=()=>{show(i-1);loop()};$('pp
 $('fa').onchange=()=>{localStorage.fa=$('fa').value;load()};
 $('ct').value=localStorage.ct||'';$('ct').onchange=()=>{localStorage.ct=$('ct').value;load()};
 $('lo').onclick=async()=>{await fetch('/api/logout').catch(()=>{});await Promise.all((await caches.keys()).map(k=>caches.delete(k)));location='/login'};
-addEventListener('keydown',e=>{showUI();if(e.key=='f')fsT();if(e.key=='ArrowRight'){next();loop()}if(e.key=='ArrowLeft'){show(i-1);loop()}if(e.key==' ')pp()});
+addEventListener('keydown',e=>{showUI();if(e.key=='Escape'&&!$('mp').hidden)closeMp();if(e.key=='f')fsT();if(e.key=='ArrowRight'){next();loop()}if(e.key=='ArrowLeft'){show(i-1);loop()}if(e.key==' ')pp()});
 let sx=0;addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
 addEventListener('touchend',e=>{const d=e.changedTouches[0].clientX-sx;if(Math.abs(d)>60){d<0?next():show(i-1);loop()}},{passive:true});
 async function wl(){try{await navigator.wakeLock?.request('screen')}catch{}}
@@ -126,6 +134,7 @@ $('mu').textContent=muted?'🔇':'🔊';
 $('mu').onclick=()=>{muted=!muted;localStorage.mute=muted?'1':'0';$('mu').textContent=muted?'🔇':'🔊';muted?au.pause():unlock()};
 $('mn').onclick=()=>{muted=false;localStorage.mute='0';$('mu').textContent='🔊';playNext()};
 $('mv').oninput=()=>{au.volume=+$('mv').value;localStorage.vol=$('mv').value};
+if(/iP(ad|hone|od)/.test(navigator.userAgent)||(navigator.platform=='MacIntel'&&navigator.maxTouchPoints>1))$('mv').hidden=true; // iOS ignores page volume
 fetch('/api/me').then(r=>r.json()).then(d=>{me=d.scope;$('ad').hidden=me!='admin';draw()}).catch(()=>{});
 load().catch(()=>{}).finally(loop);setInterval(()=>load().catch(()=>{}),6e4);setInterval(draw,1e3);
 </script></body></html>
