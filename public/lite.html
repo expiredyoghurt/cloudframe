@@ -15,12 +15,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Helve
 #dim{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;-webkit-transition:opacity 3s;transition:opacity 3s;z-index:1}#ov .b{z-index:2}
 .c{left:50%;top:50%;margin:0;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);max-width:90%;text-align:center;padding:3vmin 5vmin}.c .t{font-size:17vmin}.c .m{font-size:4.2vmin}
 .c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:3.4vmin}.pd{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:6px}
+#off{position:fixed;top:10px;left:50%;-webkit-transform:translateX(-50%);transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:6px 14px;border-radius:14px;font:14px Helvetica,Arial,sans-serif;z-index:8}
 </style><style id=dyn></style></head><body>
-<div class=s id=a></div><div class=s id=b></div><video class=s id=vd playsinline muted></video><div id=dim></div><div id=ov></div>
+<div class=s id=a></div><div class=s id=b></div><video class=s id=vd playsinline muted></video><div id=dim></div><div id=ov></div><div id=off style="display:none">Offline &middot; showing saved photos</div>
 <div id=cb><div class=ln id=mpl style="display:none"><div><a href="/">Standard</a><a href="/lite/logout">Sign out</a></div></div><div class=ln><div><button id=pv>&lsaquo;</button><button id=pp>&#10074;&#10074;</button><button id=nx>&rsaquo;</button><button id=fs>Full screen</button><button id=mo>More</button></div></div></div>
 <div id=hint>Fullscreen is not available in this browser. Tap Share, then Add to Home Screen, and open CloudFrame Lite from your Home Screen for a full-screen view.</div>
 <script>
-var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,PSI=null,NC=null,UV=null,lk=0,UC={'Low':'#4cc38a','Moderate':'#f5d33f','High':'#f59e42','Very high':'#ef5350','Extreme':'#a06cd5'},PC={'Good':'#4cc38a','Moderate':'#4da3ff','Unhealthy':'#f5d33f','Very unhealthy':'#f59e42','Hazardous':'#ef5350'},off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
+var S={},P=[],O=[],i=-1,cur=0,now=null,W=null,PSI=null,NC=null,UV=null,OUT=null,lastOk=new Date().getTime(),lastSeq=+(localStorage.seq||0),PV='2.0',DEV=localStorage.dev||(localStorage.dev='l'+Math.random().toString(36).slice(2,12)+new Date().getTime().toString(36)),lk=0,UC={'Low':'#4cc38a','Moderate':'#f5d33f','High':'#f59e42','Very high':'#ef5350','Extreme':'#a06cd5'},PC={'Good':'#4cc38a','Moderate':'#4da3ff','Unhealthy':'#f5d33f','Very unhealthy':'#f59e42','Hazardous':'#ef5350'},off=0,paused=false,T=null,UT=null,sig=null,tok=0,started=false;
 var DN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function $(id){return document.getElementById(id)}
@@ -30,9 +31,9 @@ function get(u,cb){var x=new XMLHttpRequest();x.open('GET',u,true);
 x.onreadystatechange=function(){if(x.readyState!==4)return;
 if(x.status===401||x.status===403){location.href='/lite/login';return}
 if(x.status===200){try{cb(JSON.parse(x.responseText))}catch(e){}}};x.send(null)}
-function load(){get('/api/lite',function(d){S=d.s;W=d.w;PSI=d.psi;NC=d.nc;UV=d.uv;off=d.off;
+function load(){get('/api/lite?dev='+DEV,function(d){S=d.s;W=d.w;PSI=d.psi;NC=d.nc;UV=d.uv;OUT=d.out;off=d.off;lastOk=new Date().getTime();
 var k=d.p.map(function(p){return p.id}).join(',');
-if(k!==sig){sig=k;P=d.p;O=[];for(var n=0;n<P.length;n++)O.push(n);
+if(k!==sig){sig=k;P=d.p;O=[];for(var n=0;n<P.length;n++){O.push(n);if(P[n].favorite&&S.order==='shuffle')for(var q=1;q<(S.fav_boost||1);q++)O.push(n)}
 if(S.order==='shuffle')for(var j=O.length-1;j>0;j--){var r=Math.floor(Math.random()*(j+1)),t=O[j];O[j]=O[r];O[r]=t}
 i=-1;if(P.length)show(0);else{$('a').className='s';$('b').className='s';now=null}}
 draw();if(!started){started=true;loop()}})}
@@ -42,27 +43,35 @@ im.onload=function(){if(my!==tok)return;
 el.style.backgroundImage='url(/api/photo/'+p.id+')';el.style.backgroundSize=S.fit==='contain'?'contain':'cover';
 el.className='s on';old.className='s';cur=cur?0:1;now=p;draw()};
 im.src='/api/photo/'+p.id}
-function sl(m){if(!S.sleep_on||S.sleep_start===S.sleep_end)return false;var a=S.sleep_start.split(':'),b=S.sleep_end.split(':'),s=a[0]*60+ +a[1],e=b[0]*60+ +b[1];return s<e?(m>=s&&m<e):(m>=s||m<e)}
+function t12(t){var a=t.split(':'),h=+a[0];return ((h%12)||12)+':'+a[1]+(h<12?' AM':' PM')}
+function OI(t){return /thunder/i.test(t)?'\u26C8':/shower|rain/i.test(t)?'\uD83C\uDF27':/cloud/i.test(t)?(/partly/i.test(t)?'\u26C5':'\u2601'):/fair|sunny|clear/i.test(t)?'\u2600':''}
+function cv(c){return S.units==='F'?Math.round(c*9/5+32):c}
+function mn(t){var a=t.split(':');return a[0]*60+ +a[1]}
+function sch(d){var wk=S.sleep_wk_on&&(d===5||d===6),s=mn(wk?S.sleep_wk_start:S.sleep_start),e=mn(wk?S.sleep_wk_end:S.sleep_end);if(S.sleep_from_sunset&&W&&W.sun)s=mn(W.sun.set);return[s,e]}
+function sl(m,dw){if(!S.sleep_on)return false;var a=sch(dw),b=sch((dw+6)%7),s=a[0],e=a[1];return (s<e?(m>=s&&m<e):(s>e&&m>=s))||(b[0]>b[1]&&m<b[1])}
 function draw(){var o=$('ov'),kk=(S.overlay_scale||100)/100;
-if(kk!==lk){lk=kk;$('dyn').innerHTML='.t{font-size:'+Math.round(44*kk)+'px}.m{font-size:'+Math.round(18*kk)+'px}.b{padding:'+Math.round(12*kk)+'px '+Math.round(18*kk)+'px;border-radius:'+Math.round(18*kk)+'px;max-width:'+Math.round(44*kk)+'%}.c{max-width:90%}.c .t{font-size:'+(17*kk)+'vmin}.c .m{font-size:'+(4.2*kk)+'vmin}.c .tm{font-size:'+(3.4*kk)+'vmin}'}var d0=new Date(Date.now()+off*60000),sleepNow=sl(d0.getUTCHours()*60+d0.getUTCMinutes());
+if(kk!==lk){lk=kk;$('dyn').innerHTML='.t{font-size:'+Math.round(44*kk)+'px}.m{font-size:'+Math.round(18*kk)+'px}.b{padding:'+Math.round(12*kk)+'px '+Math.round(18*kk)+'px;border-radius:'+Math.round(18*kk)+'px;max-width:'+Math.round(44*kk)+'%}.c{max-width:90%}.c .t{font-size:'+(17*kk)+'vmin}.c .m{font-size:'+(4.2*kk)+'vmin}.c .tm{font-size:'+(3.4*kk)+'vmin}'}var d0=new Date(Date.now()+off*60000),sleepNow=sl(d0.getUTCHours()*60+d0.getUTCMinutes(),d0.getUTCDay());
 $('dim').style.opacity=sleepNow?1-(S.sleep_level==null?5:S.sleep_level)/100:0;
 if(!P.length){o.innerHTML='<div class="b bl" style="background:rgba(0,0,0,.35)"><div class=m>No photos to show</div></div>';return}
 if(!S.overlay){o.innerHTML='';return}
 var d=new Date(Date.now()+off*60000),F={},h=d.getUTCHours(),mi=z(d.getUTCMinutes());
 if(S.show_time)F.time='<div class=t>'+(S.h24?z(h)+':'+mi:((h%12)||12)+':'+mi+(h<12?' AM':' PM'))+'</div>';
 if(S.show_date)F.date='<div class=m>'+DN[d.getUTCDay()]+', '+d.getUTCDate()+' '+MN[d.getUTCMonth()]+' '+d.getUTCFullYear()+'</div>';
+if(S.show_sun&&W&&W.sun)F.sun='<div class=m>&#127749; '+(S.h24?W.sun.rise:t12(W.sun.rise))+' &middot; &#127751; '+(S.h24?W.sun.set:t12(W.sun.set))+'</div>';
+if(S.show_outlook&&OUT&&OUT.length){var ol=[];for(var q=0;q<OUT.length&&q<4;q++){var o2=OUT[q];ol.push(esc(o2.label)+' '+OI(o2.text)+' '+cv(o2.lo)+'&ndash;'+cv(o2.hi)+'&deg;')}F.out='<div class=m>'+ol.join(' &middot; ')+'</div>'}
+if(S.show_warn&&NC&&/thunder|heavy/i.test(NC.forecast))F.warn='<div class=m style="color:#ffd27a">&#9888; '+esc(NC.forecast)+' expected near '+esc(NC.area)+'</div>';
 if(S.show_nowcast&&NC)F.nc='<div class=m>Next 2 h &middot; '+esc(NC.area)+': '+esc(NC.forecast)+'</div>';
 if(S.show_uv&&UV&&!sleepNow)F.uv='<div class=m><span class=pd style="background:'+UC[UV.band]+'"></span>UV '+UV.v+' &middot; '+UV.band+'</div>';
 if(S.show_psi&&PSI&&!sleepNow)F.psi='<div class=m><span class=pd style="background:'+PC[PSI.band]+'"></span>PSI '+PSI.v+' &middot; '+PSI.band+'</div>';
 if(W){if(S.show_temp)F.temp='<div class=t>'+W.t+'&deg;'+S.units+'</div>';if(S.show_weather&&W.c)F.w='<div class=m>'+W.c+'</div>'}
-if(S.show_meta&&now){if(now.caption)F.cap='<div class=m>'+esc(now.caption)+'</div>';
-if(now.taken_at){var t=now.taken_at.split('-');if(t.length===3)F.tk='<div class=m>Taken '+(+t[2])+' '+MN[t[1]-1]+' '+t[0]+'</div>'}
+if(S.show_caption&&now&&now.caption)F.cap='<div class=m>'+esc(now.caption)+'</div>';
+if(S.show_info&&now){if(now.taken_at){var t=now.taken_at.split('-');if(t.length===3)F.tk='<div class=m>Taken '+(+t[2])+' '+MN[t[1]-1]+' '+t[0]+'</div>'}
 F.n='<div class=m>'+(now.kind==='video'?'Video ':'Photo ')+(i+1)+' of '+P.length+'</div>'}
 if(sleepNow){var wl=[];if(W){if(S.show_weather&&W.c)wl.push(W.c);if(S.show_temp)wl.push(W.t+'&deg;'+S.units)}
 var tmr=W&&W.tm&&(S.show_weather||S.show_temp)?'<div class=tm>Tomorrow: '+(S.show_weather?W.tm.c+' ':'')+(S.show_temp?W.tm.lo+'&deg;/'+W.tm.hi+'&deg;'+S.units:'')+(S.show_weather&&W.tm.p!=null?' &middot; '+W.tm.p+'% rain':'')+'</div>':'';
-o.innerHTML='<div class="b c" style="background:rgba(0,0,0,'+S.opacity+')">'+(F.time||'')+(F.date||'')+(wl.length?'<div class=m>'+wl.join(' &middot; ')+'</div>':'')+(F.nc||'')+tmr+'</div>';return}
-var G={};if(S.position==='split'){G={tl:['time','date'],tr:['temp','w','nc'],bl:['uv','psi','cap'],br:['tk','n']}}
-else G[S.position]=['time','date','temp','w','nc','uv','psi','cap','tk','n'];
+o.innerHTML='<div class="b c" style="background:rgba(0,0,0,'+S.opacity+')">'+(F.time||'')+(F.date||'')+(wl.length?'<div class=m>'+wl.join(' &middot; ')+'</div>':'')+(F.warn||'')+(F.nc||'')+tmr+'</div>';return}
+var G={};if(S.position==='split'){G={tl:['time','date'],tr:['temp','w','warn','nc'],bl:['uv','psi','sun','cap'],br:['out','tk','n']}}
+else G[S.position]=['time','date','temp','w','warn','nc','sun','uv','psi','out','cap','tk','n'];
 var bg='background:rgba(0,0,0,'+S.opacity+')',out='';
 for(var c in G){var s='',ks=G[c];for(var n=0;n<ks.length;n++)s+=F[ks[n]]||'';if(s)out+='<div class="b '+c+'" style="'+bg+'">'+s+'</div>'}
 o.innerHTML=out}
@@ -93,4 +102,18 @@ function fsToggle(){var r=de.requestFullscreen||de.webkitRequestFullscreen||de.m
 if(!r){$('hint').style.display='block';setTimeout(function(){$('hint').style.display='none'},8000);return}
 if(fsOn()){var x=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;x.call(document)}else r.call(de)}
 load();setInterval(load,60000);setInterval(draw,10000);
+function runCmd(c){if(c.type==='next'){show(i+1);loop()}else if(c.type==='prev'){show(i-1);loop()}
+else if(c.type==='pause'){paused=true;$('pp').innerHTML='&#9654;'}else if(c.type==='play'){paused=false;$('pp').innerHTML='&#10074;&#10074;'}
+else if(c.type==='reload')location.reload();
+else if(c.type==='show'){for(var k=0;k<P.length;k++)if(P[k].id===c.photo){var j=0;for(var n=0;n<O.length;n++)if(O[n]===k){j=n;break}show(j);loop();break}}}
+function ping(){var x=new XMLHttpRequest();x.open('POST','/api/device/ping',true);x.setRequestHeader('Content-Type','application/json');
+x.onreadystatechange=function(){if(x.readyState!==4)return;if(x.status===401){location.href='/lite/login';return}if(x.status!==200)return;
+var d;try{d=JSON.parse(x.responseText)}catch(e){return}lastOk=new Date().getTime();
+if(d.revoked){localStorage.removeItem('dev');location.href='/lite/logout';return}
+if(d.ver&&d.ver!==PV&&new Date().getTime()-(+sessionStorage.rl||0)>600000){sessionStorage.rl=new Date().getTime();location.reload();return}
+if(d.cmd&&d.cmd.seq!==lastSeq){lastSeq=d.cmd.seq;localStorage.seq=lastSeq;runCmd(d.cmd)}};
+x.send(JSON.stringify({id:DEV,kind:'lite',ver:PV,ack:lastSeq}))}
+setInterval(ping,15000);ping();
+setInterval(function(){$('off').style.display=(new Date().getTime()-lastOk>150000)?'block':'none'},5000);
+setInterval(function(){var d=new Date();if(d.getHours()===3&&d.getMinutes()<5&&new Date().getTime()-(+sessionStorage.nr||0)>72000000){sessionStorage.nr=new Date().getTime();location.reload()}},60000);
 </script></body></html>

@@ -3,6 +3,9 @@
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,sans-serif;cursor:none}body.ui{cursor:default}
 .s{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1.5s}.s.on{opacity:1}
+.s.kb{animation:kb var(--kd,15s) var(--ke,linear) both;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+@keyframes kb{from{transform:translate3d(var(--x0,0%),var(--y0,0%),0) scale(var(--s0,1))}to{transform:translate3d(var(--x1,0%),var(--y1,0%),0) scale(var(--s1,1))}}
+body.pz .s.kb{animation-play-state:paused}
 .b{position:absolute;margin:3vmin;padding:calc(1.6vmin*var(--k,1)) calc(2.2vmin*var(--k,1));border-radius:calc(2.4vmin*var(--k,1));background:rgba(0,0,0,var(--o,.35));
 backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;text-shadow:0 1px 3px #0008;max-width:calc(42vw*var(--k,1))}
 .tl{top:0;left:0;top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px)}.tr{top:0;right:0;text-align:right;top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px)}.bl{bottom:0;left:0;bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px)}.br{bottom:0;right:0;text-align:right;bottom:env(safe-area-inset-bottom,0px);right:env(safe-area-inset-right,0px)}
@@ -13,15 +16,17 @@ body.ui #cb{opacity:1;pointer-events:auto}
 #mp{max-height:calc(100vh - 110px);max-height:calc(100dvh - 110px - env(safe-area-inset-bottom,0px));overflow-y:auto}
 #cr button,#mp>*,#mg>*{min-height:44px;min-width:44px;box-sizing:border-box;background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 #cb [hidden]{display:none!important}#mt:empty{display:none}
+#off{position:fixed;top:10px;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:6px 14px;border-radius:14px;font-size:14px;z-index:8}
 #mg{display:contents}#mg[hidden]{display:none}#mv{width:90px;padding:0;min-height:0;vertical-align:middle}#mt{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
 #dim{position:fixed;left:0;top:0;width:100%;height:100%;background:#000;opacity:0;pointer-events:none;transition:opacity 3s;z-index:1}#ov .b{z-index:2}
 .c{left:50%;top:50%;margin:0;transform:translate(-50%,-50%);max-width:90vw;text-align:center;padding:calc(3.5vmin*var(--k,1)) calc(6vmin*var(--k,1))}.c .t{font-size:calc(17vmin*var(--k,1))}.c .m{font-size:calc(4.4vmin*var(--k,1))}
 .c .tm{margin-top:2vmin;padding-top:2vmin;border-top:1px solid rgba(255,255,255,.25);font-size:calc(3.6vmin*var(--k,1));opacity:.92}.pd{display:inline-block;width:.7em;height:.7em;border-radius:50%;margin-right:.4em}
 </style></head><body>
-<img class=s id=a alt=""><img class=s id=b alt=""><video class=s id=vd playsinline muted preload=auto></video><div id=dim></div><div id=ov></div>
+<img class=s id=a alt=""><img class=s id=b alt=""><video class=s id=vd playsinline muted preload=auto></video><div id=dim></div><div id=ov></div><div id=off hidden>Offline · showing saved photos</div>
 <div id=cb><div id=mp hidden><select id=fa></select><select id=ct title="Show"><option value="">Auto</option><option value=all>Photos &amp; videos</option><option value=photos>Photos</option><option value=videos>Videos</option></select><span id=mg hidden><button id=mu title="Music on/off">🔊</button><button id=mn title="Next track">⏭</button><input id=mv type=range min=0 max=1 step=.05 title=Volume><span id=mt></span></span><span id=lx hidden></span><a id=lt href="/lite">Lite</a><a id=ad href="/admin" hidden>Admin</a><button id=lo>Log out</button></div><div id=cr><button id=pv aria-label=Previous>‹</button><button id=pp aria-label=Pause>❚❚</button><button id=nx aria-label=Next>›</button><button id=fs title="Fullscreen (F)">⛶</button><button id=mo aria-label=More aria-expanded=false>⋯</button></div></div>
 <script>
-let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='',musicOff=false,lux=null,ls=null,lsTried=false,NC=null,UV=null,nct=0,uvt=0,nck='';
+let S={},P=[],O=[],i=-1,cur=0,now=null,Wx=null,wk='',wt=0,paused=false,T,me='frame',ut,au=new Audio(),TR=[],ti=-1,muted=localStorage.mute=='1',errs=0,wok=0,vidActive=false,vT=[],mPaused=false,PS=null,pt=0,pk='',musicOff=false,lux=null,ls=null,lsTried=false,NC=null,UV=null,nct=0,uvt=0,nck='',OL=null,olt=0,lastOk=Date.now(),lastSeq=+localStorage.seq||0;
+const PV='2.0',DEV=localStorage.dev||(localStorage.dev=(self.crypto&&crypto.randomUUID?crypto.randomUUID():'d'+Math.random().toString(36).slice(2)+Date.now().toString(36)));
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const PC={Good:'#4cc38a',Moderate:'#4da3ff',Unhealthy:'#f5d33f','Very unhealthy':'#f59e42',Hazardous:'#ef5350'};
@@ -29,25 +34,43 @@ const UC={Low:'#4cc38a',Moderate:'#f5d33f',High:'#f59e42','Very high':'#ef5350',
 const WM={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Drizzle',53:'Drizzle',55:'Drizzle',61:'Rain',63:'Rain',65:'Heavy rain',71:'Snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
 async function api(p){const r=await fetch(p);if(r.status==401){location='/login?mode=frame';throw 0}return r.json()}
 async function weather(){if(S.lat===''||S.lon==='')return Wx=null;
-try{const r=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=2&timezone=auto&temperature_unit=${S.units=='F'?'fahrenheit':'celsius'}`)).json();
-const dl=r.daily||{};Wx={t:Math.round(r.current.temperature_2m),c:WM[r.current.weather_code]||'',tm:dl.time&&dl.time.length>1?{c:WM[dl.weather_code[1]]||'',hi:Math.round(dl.temperature_2m_max[1]),lo:Math.round(dl.temperature_2m_min[1]),p:dl.precipitation_probability_max?dl.precipitation_probability_max[1]:null}:null};wok=Date.now()}catch{}}
-async function load(){S=await api('/api/settings');const hid=S.hide_albums||[],al=await api('/api/albums');
+try{const r=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&forecast_days=2&timezone=auto&temperature_unit=${S.units=='F'?'fahrenheit':'celsius'}`)).json();
+const dl=r.daily||{};Wx={t:Math.round(r.current.temperature_2m),c:WM[r.current.weather_code]||'',tm:dl.time&&dl.time.length>1?{c:WM[dl.weather_code[1]]||'',hi:Math.round(dl.temperature_2m_max[1]),lo:Math.round(dl.temperature_2m_min[1]),p:dl.precipitation_probability_max?dl.precipitation_probability_max[1]:null}:null,sun:dl.sunrise?{rise:dl.sunrise[0].slice(11,16),set:dl.sunset[0].slice(11,16)}:null};wok=Date.now()}catch{}}
+async function load(){S=await api('/api/settings?dev='+DEV);const hid=S.hide_albums||[],al=await api('/api/albums');
 const AL=[...al.albums,{id:'none',name:'Unsorted'}].filter(a=>!hid.includes(a.id)),fa=$('fa');let fl=localStorage.fa||'all';
 if(fl!='all'&&!AL.some(a=>a.id==fl))fl='all';
 const h='<option value=all>All albums</option>'+AL.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
 if(fa.innerHTML!=h)fa.innerHTML=h;fa.value=localStorage.fa=fl;
-const ct=localStorage.ct||S.content,all=await api('/api/photos');syncSW(all.filter(x=>x.kind!='video'&&!hid.includes(x.album_id||'none')).map(x=>x.id));
-const p=all.filter(x=>{const k=x.album_id||'none';return !hid.includes(k)&&(fl=='all'||k==fl)&&(ct=='all'||(ct=='photos')==(x.kind!='video'))});
-if(p.length!=P.length||p.some((x,k)=>x.id!=P[k].id)){P=p;O=[...P.keys()];if(S.order=='shuffle')O.sort(()=>Math.random()-.5);i=-1;
+const ct=localStorage.ct||S.content,all=await api('/api/photos');syncSW(all.filter(x=>x.kind!='video'&&!x.hidden&&!hid.includes(x.album_id||'none')).map(x=>x.id));
+const p=all.filter(x=>{const k=x.album_id||'none';return !x.hidden&&!hid.includes(k)&&(fl=='all'||k==fl)&&(ct=='all'||(ct=='photos')==(x.kind!='video'))});
+if(p.length!=P.length||p.some((x,k)=>x.id!=P[k].id)){P=p;O=[...P.keys()];if(S.order=='shuffle'){P.forEach((x,k)=>{if(x.favorite)for(let n=1;n<(S.fav_boost||1);n++)O.push(k)});O.sort(()=>Math.random()-.5)}i=-1;
 if(P.length)show(0);else{$('a').classList.remove('on');$('b').classList.remove('on');now=null}}
 const k=S.lat+S.lon+S.units;if(k!=wk||Date.now()-wt>9e5){wk=k;wt=Date.now();weather()}
-if(S.show_psi){if(Date.now()-pt>36e5||pk!=S.psi_region){pt=Date.now();pk=S.psi_region;api('/api/psi').then(d=>{PS=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else PS=null;
-if(S.show_nowcast){const k=S.nowcast_area+S.lat+S.lon;if(Date.now()-nct>18e5||nck!=k){nct=Date.now();nck=k;api('/api/nowcast').then(d=>{NC=d&&d.forecast?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else NC=null;
+if(S.show_psi){if(Date.now()-pt>36e5||pk!=S.psi_region){pt=Date.now();pk=S.psi_region;api('/api/psi?dev='+DEV).then(d=>{PS=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else PS=null;
+if(S.show_nowcast){const k=S.nowcast_area+S.lat+S.lon;if(Date.now()-nct>18e5||nck!=k){nct=Date.now();nck=k;api('/api/nowcast?dev='+DEV).then(d=>{NC=d&&d.forecast?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else NC=null;
 if(S.show_uv){if(Date.now()-uvt>18e5){uvt=Date.now();api('/api/uv').then(d=>{UV=d&&typeof d.v=='number'?Object.assign(d,{got:Date.now()}):null;draw()}).catch(()=>{})}}else UV=null;
+if(S.show_outlook){if(Date.now()-olt>36e5){olt=Date.now();api('/api/outlook').then(d=>{OL=d&&d.length?{list:d,got:Date.now()}:null;draw()}).catch(()=>{})}}else OL=null;
 initLS();draw();music()}
 function show(k){if(!P.length)return;clearV();i=((k%O.length)+O.length)%O.length;const p=P[O[i]];if(p.kind=='video')return playV(p);$('vd').classList.remove('on');const el=$(cur?'a':'b'),old=$(cur?'b':'a');
-el.style.objectFit=old.style.objectFit=S.fit;el.onload=()=>{el.classList.add('on');old.classList.remove('on');cur^=1;now=p;draw()};el.src='/api/photo/'+p.id}
+el.style.objectFit=old.style.objectFit=S.fit;el.onload=()=>{kbSet(el,p);el.classList.add('on');old.classList.remove('on');cur^=1;now=p;draw()};el.src='/api/photo/'+p.id}
 const next=()=>show(i+1);
+// ---- Ken Burns (photos only): a slow pan or zoom on each photo. A choice saved on the photo wins over the general setting.
+// Pans and diagonals run at the "pan" zoom level so there is room to move; zoom in/out run between 100% and the "zoom" level.
+const KBG={all:['lr','rl','tlbr','trbl','bltr','brtl','in','out'],zoom:['in','out'],pan:['lr','rl'],diag:['tlbr','trbl','bltr','brtl']},
+KBD={lr:[-1,0],rl:[1,0],tlbr:[-1,-1],trbl:[1,-1],bltr:[-1,1],brtl:[1,1]}, // where the camera starts: -1 left/top, +1 right/bottom
+KBT={slow:1,medium:.62,fast:.35}; // share of the slide time the move takes (slow = the whole time the photo is on screen)
+let lastKB='';const pick=a=>a[Math.floor(Math.random()*a.length)];
+function kbPick(p){if(!S.kb_on)return null;let m=p.kb_move||S.kb_mode||'all';if(m=='none')return null;
+if(KBG[m]){const pool=KBG[m].filter(x=>x!=lastKB);m=pick(pool.length?pool:KBG[m])}
+let sp=p.kb_speed||S.kb_speed||'slow';if(!KBT[sp])sp=pick(['slow','medium','fast']);return{m,sp}}
+function kbSet(el,p){el.classList.remove('kb');const k=kbPick(p);if(!k)return;lastKB=k.m;
+const z=Math.min(2,Math.max(1.05,(+S.kb_zoom||125)/100)),ps=Math.min(1.5,Math.max(1.05,(+S.kb_pan||115)/100)),st=el.style;
+let x0=0,y0=0,x1=0,y1=0,s0=ps,s1=ps;
+if(k.m=='in'){s0=1;s1=z}else if(k.m=='out'){s0=z;s1=1}
+else{const d=(ps-1)/2*100,c=KBD[k.m]||[0,0];x0=-c[0]*d;x1=c[0]*d;y0=-c[1]*d;y1=c[1]*d}
+st.setProperty('--x0',x0+'%');st.setProperty('--y0',y0+'%');st.setProperty('--x1',x1+'%');st.setProperty('--y1',y1+'%');st.setProperty('--s0',s0);st.setProperty('--s1',s1);
+st.setProperty('--kd',Math.max(2,((S.interval||15)+1.5)*KBT[k.sp]).toFixed(2)+'s');st.setProperty('--ke',k.sp=='slow'?'linear':'cubic-bezier(.25,.46,.45,.94)');
+void el.offsetWidth;el.classList.add('kb')}
 function loop(){clearTimeout(T);T=setTimeout(()=>{if(!paused&&!vidActive)next();loop()},(S.interval||15)*1e3)}
 // optional: dim the screen in software using the device's ambient light sensor (only some Chromium/Android devices expose one)
 function initLS(){const lx=$('lx');
@@ -57,9 +80,16 @@ if(!('AmbientLightSensor' in window)){lx.textContent='No light sensor';return}
 try{ls=new AmbientLightSensor({frequency:1});ls.onreading=()=>{lux=ls.illuminance;lx.textContent='☀ '+Math.round(lux)+' lx';draw()};
 ls.onerror=()=>{lx.textContent='Light sensor unavailable';lux=null;draw()};ls.start()}catch(e){lx.textContent='Light sensor unavailable'}}
 // sleep hours: dim the photos and show a large clock (uses the timezone from Display settings)
-function slp(){if(!S.sleep_on||S.sleep_start==S.sleep_end)return false;let tz=S.tz;try{new Intl.DateTimeFormat(0,{timeZone:tz})}catch{tz=undefined}
-const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()),g=t=>+p.find(x=>x.type==t).value,m=g('hour')*60+g('minute'),a=S.sleep_start.split(':'),b=S.sleep_end.split(':'),s=+a[0]*60+ +a[1],e=+b[0]*60+ +b[1];
-return s<e?(m>=s&&m<e):(m>=s||m<e)}
+const t12=t=>{const a=t.split(':'),h=+a[0];return ((h%12)||12)+':'+a[1]+(h<12?' AM':' PM')};
+const OI=t=>/thunder/i.test(t)?'⛈':/shower|rain/i.test(t)?'🌧':/cloud/i.test(t)?(/partly/i.test(t)?'⛅':'☁'):/fair|sunny|clear/i.test(t)?'☀':'';
+const mins=t=>{const a=t.split(':');return +a[0]*60+ +a[1]};
+function slp(){if(!S.sleep_on)return false;let tz=S.tz;try{new Intl.DateTimeFormat(0,{timeZone:tz})}catch{tz=undefined}
+const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()),g=t=>p.find(x=>x.type==t).value,
+m=+g('hour')*60+ +g('minute'),dw=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(g('weekday'));
+// a night belongs to the day it starts on: Friday and Saturday nights can use the weekend times
+const sch=d=>{const wk=S.sleep_wk_on&&(d==5||d==6);let s=mins(wk?S.sleep_wk_start:S.sleep_start);const e=mins(wk?S.sleep_wk_end:S.sleep_end);if(S.sleep_from_sunset&&Wx&&Wx.sun)s=mins(Wx.sun.set);return[s,e]};
+const[s,e]=sch(dw),[ps,pe]=sch((dw+6)%7);
+return (s<e?(m>=s&&m<e):(s>e&&m>=s))||(ps>pe&&m<pe)}
 function draw(){const o=$('ov'),sl=slp();const sb=sl?(S.sleep_level??5)/100:(S.light_sensor&&lux!=null?Math.min(1,Math.max((S.light_min??25)/100,Math.log10(lux+1)/Math.log10(251))):1);$('dim').style.opacity=1-sb;
 const mo=sl&&S.sleep_music_off;if(mo!==musicOff){musicOff=mo;if(mo)au.pause();else if(S.music&&!muted&&TR.length)au.src?au.play().catch(()=>{}):playNext()}o.style.setProperty('--o',S.opacity);o.style.setProperty('--k',(S.overlay_scale??100)/100);
 if(!P.length){o.innerHTML='<div class="b bl"><div class=m>No photos to show'+(me=='admin'?' – <a href="/admin#photos" style="color:#8ab4ff">add some</a>':'')+'</div></div>';return}
@@ -74,13 +104,17 @@ if(S.show_weather&&W&&W.c)F.w=`<div class=m>${W.c}</div>`;
 if(S.show_nowcast&&NC&&Date.now()-NC.got<54e5)F.nc=`<div class=m>Next 2 h · ${esc(NC.area)}: ${esc(NC.forecast)}</div>`;
 if(S.show_uv&&UV&&!sl&&Date.now()-UV.got<108e5)F.uv=`<div class=m><span class=pd style="background:${UC[UV.band]}"></span>UV ${UV.v} · ${UV.band}</div>`;
 if(S.show_psi&&PS&&!sl&&Date.now()-PS.got<144e5)F.psi=`<div class=m><span class=pd style="background:${PC[PS.band]}"></span>PSI ${PS.v} · ${PS.band}</div>`;
-if(S.show_meta&&now){if(now.caption)F.cap=`<div class=m>${esc(now.caption)}</div>`;
-const t=now.taken_at&&new Date(now.taken_at);if(t&&!isNaN(t))F.tk=`<div class=m>Taken ${t.toLocaleDateString(undefined,{dateStyle:'medium'})}</div>`;
+const cv=c=>S.units=='F'?Math.round(c*9/5+32):c;
+if(S.show_sun&&W&&W.sun)F.sun=`<div class=m>🌅 ${S.h24?W.sun.rise:t12(W.sun.rise)} · 🌇 ${S.h24?W.sun.set:t12(W.sun.set)}</div>`;
+if(S.show_outlook&&OL&&Date.now()-OL.got<18e6)F.out=`<div class=m>${OL.list.slice(0,4).map(o=>`${esc(o.label)} ${OI(o.text)} ${cv(o.lo)}–${cv(o.hi)}°`).join(' · ')}</div>`;
+if(S.show_warn&&NC&&Date.now()-NC.got<54e5&&/thunder|heavy/i.test(NC.forecast))F.warn=`<div class=m style="color:#ffd27a">⚠ ${esc(NC.forecast)} expected near ${esc(NC.area)}</div>`;
+if(S.show_caption&&now&&now.caption)F.cap=`<div class=m>${esc(now.caption)}</div>`;
+if(S.show_info&&now){const t=now.taken_at&&new Date(now.taken_at);if(t&&!isNaN(t))F.tk=`<div class=m>Taken ${t.toLocaleDateString(undefined,{dateStyle:'medium'})}</div>`;
 F.n=`<div class=m>${now.kind=='video'?'Video':'Photo'} ${i+1} of ${P.length}</div>`}
 if(sl){const wl=[S.show_weather&&W&&W.c,S.show_temp&&W&&W.t+'°'+S.units].filter(Boolean).join(' · ');
 const tm=W&&W.tm&&(S.show_weather||S.show_temp)?`<div class=tm>Tomorrow: ${S.show_weather?W.tm.c+' ':''}${S.show_temp?W.tm.lo+'°/'+W.tm.hi+'°'+S.units:''}${S.show_weather&&W.tm.p!=null?' · '+W.tm.p+'% rain':''}</div>`:'';
-o.innerHTML=`<div class="b c">${F.time||''}${F.date||''}${wl?`<div class=m style="margin-top:1vmin">${wl}</div>`:''}${F.nc||''}${tm}</div>`;return}
-const G=S.position=='split'?{tl:['time','date'],tr:['temp','w','nc'],bl:['uv','psi','cap'],br:['tk','n']}:{[S.position]:['time','date','temp','w','nc','uv','psi','cap','tk','n']};
+o.innerHTML=`<div class="b c">${F.time||''}${F.date||''}${wl?`<div class=m style="margin-top:1vmin">${wl}</div>`:''}${F.warn||''}${F.nc||''}${tm}</div>`;return}
+const G=S.position=='split'?{tl:['time','date'],tr:['temp','w','warn','nc'],bl:['uv','psi','sun','cap'],br:['out','tk','n']}:{[S.position]:['time','date','temp','w','warn','nc','sun','uv','psi','out','cap','tk','n']};
 o.innerHTML=Object.entries(G).map(([c,ks])=>{const h=ks.map(k=>F[k]||'').join('');return h?`<div class="b ${c}">${h}</div>`:''}).join('')}
 // ---- video slides: play to the end (or max seconds), then move on; skip if it stalls or fails
 function clearV(){vidActive=false;vT.forEach(clearTimeout);vT=[];const v=$('vd');v.onended=v.onerror=v.oncanplay=null;v.pause();
@@ -107,7 +141,7 @@ const fsT=()=>{if(!fsCan)return alert('Fullscreen is not available in this brows
 if(fsOn())(document.exitFullscreen||document.webkitExitFullscreen).call(document);else{const p=(de.requestFullscreen||de.webkitRequestFullscreen).call(de);p&&p.catch&&p.catch(()=>{})}};
 ['fullscreenchange','webkitfullscreenchange'].forEach(e=>document.addEventListener(e,()=>$('fs').textContent=fsOn()?'✕':'⛶'));
 addEventListener('dblclick',e=>{if(!e.target.closest('#cb'))fsT()});
-const pp=()=>{paused=!paused;$('pp').textContent=paused?'▶':'❚❚';if(vidActive){paused?$('vd').pause():$('vd').play().catch(()=>{})}};
+const pp=()=>{paused=!paused;document.body.classList.toggle('pz',paused);$('pp').textContent=paused?'▶':'❚❚';if(vidActive){paused?$('vd').pause():$('vd').play().catch(()=>{})}};
 $('nx').onclick=()=>{next();loop()};$('pv').onclick=()=>{show(i-1);loop()};$('pp').onclick=pp;$('fs').onclick=fsT;
 $('fa').onchange=()=>{localStorage.fa=$('fa').value;load()};
 $('ct').value=localStorage.ct||'';$('ct').onchange=()=>{localStorage.ct=$('ct').value;load()};
@@ -137,4 +171,18 @@ $('mv').oninput=()=>{au.volume=+$('mv').value;localStorage.vol=$('mv').value};
 if(/iP(ad|hone|od)/.test(navigator.userAgent)||(navigator.platform=='MacIntel'&&navigator.maxTouchPoints>1))$('mv').hidden=true; // iOS ignores page volume
 fetch('/api/me').then(r=>r.json()).then(d=>{me=d.scope;$('ad').hidden=me!='admin';draw()}).catch(()=>{});
 load().catch(()=>{}).finally(loop);setInterval(()=>load().catch(()=>{}),6e4);setInterval(draw,1e3);
+// ---- device heartbeat: remote commands, new-version reload, sign-out, offline tag, nightly reload
+function runCmd(c){if(c.type=='next'){next();loop()}else if(c.type=='prev'){show(i-1);loop()}
+else if(c.type=='pause'||c.type=='play'){if(paused!=(c.type=='pause'))pp()}
+else if(c.type=='reload')location.reload();
+else if(c.type=='show'){const k=P.findIndex(x=>x.id==c.photo);if(k>=0){const j=O.indexOf(k);show(j>=0?j:0);loop()}}}
+async function ping(){try{const r=await fetch('/api/device/ping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:DEV,kind:'standard',ver:PV,ack:lastSeq})});
+if(r.status==401){location='/login?mode=frame';return}
+const d=await r.json();lastOk=Date.now();
+if(d.revoked){localStorage.removeItem('dev');await fetch('/api/logout').catch(()=>{});location='/login?mode=frame';return}
+if(d.ver&&d.ver!==PV&&Date.now()-(+sessionStorage.rl||0)>6e5){sessionStorage.rl=Date.now();location.reload();return}
+if(d.cmd&&d.cmd.seq!==lastSeq){lastSeq=d.cmd.seq;localStorage.seq=lastSeq;runCmd(d.cmd)}}catch(e){}}
+const offTag=()=>{$('off').hidden=!(Date.now()-lastOk>15e4||!navigator.onLine)};
+setInterval(ping,15e3);ping();setInterval(offTag,5e3);addEventListener('online',()=>{ping();offTag()});addEventListener('offline',offTag);
+setInterval(()=>{const d=new Date();if(d.getHours()==3&&d.getMinutes()<5&&Date.now()-(+sessionStorage.nr||0)>72e6){sessionStorage.nr=Date.now();location.reload()}},6e4);
 </script></body></html>

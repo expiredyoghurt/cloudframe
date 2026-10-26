@@ -50,8 +50,17 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 .up{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}.up button{padding:10px 18px;font-weight:600}
 .del{position:absolute;top:50px;right:14px;min-height:0;padding:3px 9px;opacity:0;background:#000b;color:#fff;border:0}figure:hover .del,.del:focus{opacity:1}@media(hover:none){.del{opacity:1}}
 #lbd{position:fixed;top:14px;right:14px;background:#000b;color:#fff;border:0}
+.fv{position:absolute;top:14px;left:44px;color:#ffd24a;font-size:20px;text-shadow:0 1px 3px #000}figure.hid img{opacity:.35}
+.ab{display:flex;gap:6px}.ab button{flex:1;min-height:32px;padding:2px}.sg{font-size:12px;color:var(--mut)}
+.dc{display:flex;flex-wrap:wrap;gap:6px}.row2 input[data-dn]{width:190px}#dvs{margin:0 0 14px}#dal label{margin-right:12px}
+.kbb{position:absolute;top:46px;left:14px;background:#000b;color:#fff;border-radius:8px;padding:1px 6px;font-size:12px}
+#lbw{width:fit-content;max-width:94vw;margin:0 auto;overflow:hidden;border-radius:10px;line-height:0}
+#lbi.kb{animation:kb var(--kd,15s) var(--ke,linear) both;will-change:transform}
+@keyframes kb{from{transform:translate3d(var(--x0,0%),var(--y0,0%),0) scale(var(--s0,1))}to{transform:translate3d(var(--x1,0%),var(--y1,0%),0) scale(var(--s1,1))}}
+#lbk{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:10px;color:#fff}#lbk[hidden]{display:none}
+#lbr{position:fixed;top:14px;left:14px;display:flex;gap:6px}#lbr[hidden]{display:none}#lbrot{position:fixed;top:60px;right:14px;background:#000b;color:#fff;border:0}
 </style></head><body>
-<nav><div class=brand>📷 CloudFrame <small>v1.7</small></div>
+<nav><div class=brand>📷 CloudFrame <small>v2.0</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Media</span></a>
 <a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
@@ -65,24 +74,34 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div id=dz>Drop photos or videos here, or click to choose<br><small>Photos over 4 megapixels are shrunk automatically. Videos (up to 5 minutes) are compressed to 1080p in your browser before uploading, which takes about as long as the video: keep this tab open and visible.</small></div>
 <input type=file id=f accept="image/jpeg,image/png,image/webp,video/*" multiple hidden>
 <div id=bar><i></i></div><div id=st></div>
-<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><label>Type <select id=ft><option value="">Photos &amp; videos</option><option value=photo>Photos</option><option value=video>Videos</option></select></label><button id=sa>Select all shown</button> <small>Click photos to select them, then move or delete them. 🗑 on a photo deletes just that one.</small>
-<div id=bb hidden><b id=bc></b> &nbsp; <select id=bm></select> <button id=bmv class=p>Move</button> <button id=bdl>Delete</button> <button id=bx>Clear</button></div>
+<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><label>Type <select id=ft><option value="">Photos &amp; videos</option><option value=photo>Photos</option><option value=video>Videos</option><option value=fav>★ Favourites</option><option value=hid>Hidden from frame</option><option value=trash>Recently deleted</option></select></label><button id=sa>Select all shown</button> <small>Click photos to select them, then move or delete them. 🗑 on a photo deletes just that one.</small>
+<div id=bb hidden><b id=bc></b> &nbsp; <select id=bm></select> <button id=bmv class=p>Move</button> <button id=bfv>★ Favourite</button> <button id=bhd>Hide</button> <button id=bsh>Show</button> <button id=bsg>✨ Suggest captions</button> <select id=bkm title="Ken Burns movement"></select> <select id=bks title="Ken Burns speed"></select> <button id=bkb>🎬 Set Ken Burns</button> <button id=bdl>Delete</button> <button id=brs class=p hidden>Restore</button> <button id=bpg hidden>Delete forever</button> <button id=bx>Clear</button></div>
 <div class=grid id=g></div></div>
-<div class=v id=v-display><form id=sf>
+<div class=v id=v-display><div class=panel id=dvs><label>Settings for <select id=dsel><option value="">All devices (default)</option></select></label> <button id=drs type=button hidden>Reset this device to default</button> <small id=dnote></small><div id=dal hidden></div></div>
+<form id=sf>
 <div id=pv><div id=pvi></div></div>
 <div class=pg>
 <div class=panel><h3>Overlay</h3><label><input type=checkbox name=overlay> Show overlay</label><br>
 <label>Position <select name=position><option value=tl>Top left</option><option value=tr>Top right</option><option value=bl>Bottom left</option><option value=br>Bottom right</option><option value=split>Split across all four corners</option></select></label><br>
 <label>Opacity <input type=range name=opacity min=.05 max=.9 step=.05></label><br>
 <label>Text size <input type=range name=overlay_scale min=60 max=180 step=5> <output id=osv>100%</output></label><br>
-<label><input type=checkbox name=show_time> Time</label><label><input type=checkbox name=show_date> Date</label><label><input type=checkbox name=show_weather> Weather</label><label><input type=checkbox name=show_temp> Temperature</label><label><input type=checkbox name=show_meta> Photo info</label></div>
+<label><input type=checkbox name=show_time> Time</label><label><input type=checkbox name=show_date> Date</label><label><input type=checkbox name=show_weather> Weather</label><label><input type=checkbox name=show_temp> Temperature</label><label><input type=checkbox name=show_caption> Caption</label><label><input type=checkbox name=show_info> Photo info</label>
+<p class=sub>Caption is the text you typed under the photo. Photo info is the date it was taken and the photo number (for example, Photo 3 of 120).</p></div>
 <div class=panel><h3>Slideshow</h3><label>Seconds per photo <input type=number name=interval min=3 style="width:80px"></label><br>
+<label>Favourites shown <input type=number name=fav_boost min=1 max=5 style="width:60px">× as often</label><br>
 <label>Order <select name=order><option value=shuffle>Shuffle</option><option value=sequential>Newest first</option></select></label><br>
 <label>Fit <select name=fit><option value=cover>Fill screen</option><option value=contain>Show whole photo</option></select></label><br>
 <label>Show <select name=content><option value=all>Photos &amp; videos</option><option value=photos>Photos only</option><option value=videos>Videos only</option></select></label><br>
 <label><input type=checkbox name=video_sound> Play video sound (pauses music)</label><br>
 <label>Max seconds per video <input type=number name=video_max min=0 max=300 style="width:80px"></label> <small>0 = full length</small><br>
 <label><input type=checkbox name=lite_videos> Include videos on the lite frame</label></div>
+<div class=panel><h3>Ken Burns</h3><label><input type=checkbox name=kb_on> Slow pan / zoom on photos</label><br>
+<label>Movement <select name=kb_mode><option value=all>Random: all movements</option><option value=zoom>Random: zoom in &amp; out</option><option value=pan>Random: pan left ↔ right</option><option value=diag>Random: the 4 diagonals</option>
+<optgroup label="Same movement for every photo"><option value=lr>Pan left → right</option><option value=rl>Pan right → left</option><option value=tlbr>Diagonal top-left → bottom-right</option><option value=trbl>Diagonal top-right → bottom-left</option><option value=bltr>Diagonal bottom-left → top-right</option><option value=brtl>Diagonal bottom-right → top-left</option><option value=in>Zoom in</option><option value=out>Zoom out</option></optgroup></select></label><br>
+<label>Speed <select name=kb_speed><option value=slow>Slow</option><option value=medium>Medium</option><option value=fast>Fast</option><option value=random>Random</option></select></label><br>
+<label>Zoom in / out amount <input type=range name=kb_zoom min=105 max=200 step=5> <output id=kzv>125%</output></label><br>
+<label>Pan &amp; diagonal zoom <input type=range name=kb_pan min=105 max=150 step=5> <output id=kpv>115%</output></label>
+<p class=sub>The general instruction for every photo. Zoom in runs from 100% up to the zoom amount; zoom out runs back down to 100%. Pans and diagonals use their own, smaller zoom to leave room to move. Slow lasts the whole time a photo is on screen; medium and fast finish sooner. To set one photo (or a selection), open it full size (⤢) or use the selection bar in the Media tab. Photos only, standard frame only. Looks best with Fit set to Fill screen.</p></div>
 <div class=panel><h3>Weather &amp; clock</h3><label>Units <select name=units><option>C</option><option>F</option></select></label><label><input type=checkbox name=h24> 24-hour clock</label><br>
 <input id=q placeholder="Search a place"> <button type=button id=gq>Find</button><br>
 <label>Lat <input name=lat style="width:100px"></label><label>Lon <input name=lon style="width:100px"></label><br>
@@ -91,7 +110,8 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <label>Region <select name=psi_region><option value=national>National</option><option value=north>North</option><option value=south>South</option><option value=east>East</option><option value=west>West</option><option value=central>Central</option></select></label><br>
 <label><input type=checkbox name=show_nowcast> 2-hour nowcast</label>
 <label>Area <input name=nowcast_area list=nca placeholder="nearest to location"></label><datalist id=nca></datalist><br>
-<label><input type=checkbox name=show_uv> UV index</label>
+<label><input type=checkbox name=show_uv> UV index</label><br>
+<label><input type=checkbox name=show_sun> Sunrise &amp; sunset</label><label><input type=checkbox name=show_outlook> 4-day outlook</label><label><input type=checkbox name=show_warn> Thunder / heavy-rain alert</label>
 <p class=sub>Official NEA data via data.gov.sg (Singapore only). PSI and UV show in daylight hours only (not during sleep hours); PSI refreshes hourly, the nowcast and UV every 30 minutes.</p></div>
 <div class=panel><h3>Auto brightness</h3><label><input type=checkbox name=light_sensor> Adjust brightness with the device's light sensor</label><br>
 <label>Never dimmer than <input type=number name=light_min min=5 max=100 style="width:70px"> %</label>
@@ -99,7 +119,10 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div class=panel><h3>Sleep mode</h3><label><input type=checkbox name=sleep_on> Dim during sleep hours</label><br>
 <label>From <input type=time name=sleep_start></label><label>To <input type=time name=sleep_end></label><br>
 <label>Brightness while asleep <input type=number name=sleep_level min=0 max=50 style="width:70px"> %</label><br>
-<label><input type=checkbox name=sleep_music_off> Turn music off during sleep hours</label>
+<label><input type=checkbox name=sleep_music_off> Turn music off during sleep hours</label><br>
+<label><input type=checkbox name=sleep_wk_on> Different times for Friday and Saturday nights</label><br>
+<label>From <input type=time name=sleep_wk_start></label><label>To <input type=time name=sleep_wk_end></label><br>
+<label><input type=checkbox name=sleep_from_sunset> Start at sunset instead of the From time</label>
 <p class=sub>Photos dim, and the time, day, date, weather, temperature and tomorrow's forecast show large in the middle (if the overlay is on). Uses the timezone set under Weather &amp; clock.</p></div>
 <div class=panel><h3>Background music</h3><label><input type=checkbox name=music> Play music on the frame</label><br>
 <label>Volume <input type=range name=music_volume min=0 max=1 step=.05></label><label><input type=checkbox name=music_shuffle> Shuffle</label>
@@ -115,7 +138,8 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div><input id=nf placeholder="New folder name"> <button id=nfb>Create folder</button></div>
 <div id=sl></div></div>
 </main>
-<dialog id=lb><img id=lbi alt=''><video id=lbv controls playsinline style="display:none;max-width:94vw;max-height:80vh;border-radius:10px;margin:auto"></video><div id=lbc></div><button id=lbp>‹</button><button id=lbn>›</button><button id=lbd>🗑 Delete</button></dialog>
+<dialog id=lb><div id=lbw><img id=lbi alt=''></div><video id=lbv controls playsinline style="display:none;max-width:94vw;max-height:80vh;border-radius:10px;margin:auto"></video><div id=lbc></div><div id=lbk hidden><span>🎬 Ken Burns</span><select id=lbkm title="Movement for this photo"></select><select id=lbks title="Speed for this photo"></select><button id=lbkp type=button>▶ Preview</button></div><button id=lbp>‹</button><button id=lbn>›</button><button id=lbd>🗑 Delete</button><button id=lbrot>⟳ Rotate</button><span id=lbr hidden><select id=lbs></select><button id=lbsb>📺 Show now</button></span></dialog>
+<dialog id=dd><p id=ddm style="white-space:pre-line"></p><form method=dialog><button value=cancel>Cancel upload</button> <button value=all>Upload anyway</button> <button value=skip class=p>Skip duplicates</button></form></dialog>
 <dialog id=dg><p id=dm></p><form method=dialog><button value=0>Cancel</button> <button value=1 class=p>OK</button></form></dialog><div id=ts></div>
 <script>
 const $=s=>document.querySelector(s),JH={'Content-Type':'application/json'};let tt,A=[],U=0,UC=null,S={},P=[];const sel=new Set();
@@ -125,19 +149,27 @@ const ask=m=>new Promise(r=>{$('#dm').textContent=m;const d=$('#dg');d.onclose=(
 const j=async(u,o)=>{const r=await fetch(u,o);if(r.status==401||r.status==403)location='/login?mode=admin';const d=await r.json();if(d.error)toast(d.error);return d};
 const body=(o,m='POST')=>({method:m,headers:JH,body:JSON.stringify(o)});
 function tab(){const h=location.hash.slice(1)||'overview';document.querySelectorAll('.v').forEach(e=>e.classList.toggle('on',e.id=='v-'+h));
-document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.dataset.t==h));if(h=='storage')loadSt();if(h=='overview')loadOv()}onhashchange=tab;
+document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.dataset.t==h));if(h=='storage')loadSt();if(h=='overview')loadOv().then(loadDev)}onhashchange=tab;
 // ----- display settings
 Intl.supportedValuesOf?.('timeZone').forEach(z=>$('#tzs').append(new Option(z)));
 const fv=()=>{const b={};[...$('#sf').elements].filter(e=>e.name).forEach(x=>b[x.name]=x.type=='checkbox'?x.checked:x.value);return b};
-const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120',psi:'● PSI 54 · Moderate',nc:'Next 2 h · Bishan: Light Rain',uv:'● UV 6 · High'};
-function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_meta,tk:f.show_meta,n:f.show_meta,psi:f.show_psi,nc:f.show_nowcast,uv:f.show_uv};
-const G=f.position=='split'?{tl:['time','date'],tr:['temp','w','nc'],bl:['uv','psi','cap'],br:['tk','n']}:{[f.position]:['time','date','temp','w','nc','uv','psi','cap','tk','n']};
-$('#pvi').style.setProperty('--o',f.opacity);$('#pvi').style.setProperty('--k',f.overlay_scale/100);$('#osv').textContent=f.overlay_scale+'%';
+const SM={time:'<b class=pt>21:45</b>',date:'Sunday, 4 October',temp:'<b class=pt>29°</b>',w:'Partly cloudy',cap:'Family beach day',tk:'Taken 12 Aug 2025',n:'Photo 3 of 120',psi:'● PSI 54 · Moderate',nc:'Next 2 h · Bishan: Light Rain',uv:'● UV 6 · High',sun:'🌅 06:58 · 🌇 19:12',out:'Tue ⛅ 25–32° · Wed 🌧 25–31°',warn:'⚠ Thundery Showers expected near Bishan'};
+function pre(){const f=fv(),sh={time:f.show_time,date:f.show_date,temp:f.show_temp,w:f.show_weather,cap:f.show_caption,tk:f.show_info,n:f.show_info,psi:f.show_psi,nc:f.show_nowcast,uv:f.show_uv,sun:f.show_sun,out:f.show_outlook,warn:f.show_warn};
+const G=f.position=='split'?{tl:['time','date'],tr:['temp','w','warn','nc'],bl:['uv','psi','sun','cap'],br:['out','tk','n']}:{[f.position]:['time','date','temp','w','warn','nc','sun','uv','psi','out','cap','tk','n']};
+$('#pvi').style.setProperty('--o',f.opacity);$('#pvi').style.setProperty('--k',f.overlay_scale/100);$('#osv').textContent=f.overlay_scale+'%';$('#kzv').textContent=f.kb_zoom+'%';$('#kpv').textContent=f.kb_pan+'%';
 $('#pvi').innerHTML=!f.overlay?'':Object.entries(G).map(([c,ks])=>{const k=ks.filter(x=>sh[x]);return k.length?`<div class="pb ${c}">${k.map(x=>`<div>${SM[x]}</div>`).join('')}</div>`:''}).join('')}
-let st;$('#sf').oninput=()=>{pre();clearTimeout(st);st=setTimeout(async()=>{const d=await j('/api/settings',body(fv(),'PUT'));if(!d.error)toast('Saved ✓')},600)};
+let st;
+const saveS=async()=>{if(!curDev){const d=await j('/api/settings',body(fv(),'PUT'));if(!d.error){S=d;toast('Saved ✓')}return}
+const dv=DEVS.find(d=>d.id==curDev),f=fv(),ov={};for(const k in f)if(String(f[k])!==String(S[k]))ov[k]=f[k];
+let old={};try{old=JSON.parse(dv.overrides||'{}')}catch(e){}if(old.hide_albums)ov.hide_albums=old.hide_albums;
+const r=await j('/api/devices/'+curDev+'/overrides',body(ov,'PUT'));if(!r.error){dv.overrides=Object.keys(r).length?JSON.stringify(r):null;toast('Saved for this device ✓')}};
+$('#sf').oninput=()=>{pre();clearTimeout(st);st=setTimeout(saveS,600)};
 $('#gq').onclick=async()=>{const r=(await(await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent($('#q').value))).json()).results?.[0];
 if(!r)return toast('Place not found');const f=$('#sf').elements;f.lat.value=r.latitude;f.lon.value=r.longitude;f.tz.value=r.timezone;$('#q').value=`${r.name}, ${r.country}`;$('#sf').oninput()};
-async function loadS(){S=await j('/api/settings');[...$('#sf').elements].filter(e=>e.name).forEach(e=>e.type=='checkbox'?e.checked=S[e.name]:e.value=S[e.name]);pre()}
+const lg=o=>{if(o&&'show_meta' in o){if(!('show_caption' in o))o.show_caption=!!o.show_meta;if(!('show_info' in o))o.show_info=!!o.show_meta;delete o.show_meta}return o};
+async function loadS(){S=await j('/api/settings');fillDsel();let eff={...S};const dv=DEVS.find(d=>d.id==curDev);
+if(curDev&&dv&&dv.overrides){try{eff={...S,...lg(JSON.parse(dv.overrides))}}catch(e){}}
+[...$('#sf').elements].filter(e=>e.name).forEach(e=>e.type=='checkbox'?e.checked=eff[e.name]:e.value=eff[e.name]);pre();dUI(eff)}
 // ----- albums
 const aopt=s=>A.map(a=>`<option value="${a.id}"${a.id==s?' selected':''}>${esc(a.name)}</option>`).join('');
 async function loadA(){const r=await j('/api/albums');A=r.albums;U=r.unsorted;UC=r.ucover;const hid=S.hide_albums||[];
@@ -155,12 +187,12 @@ if(t.dataset.del&&await ask('Delete this album? Its photos move to Unsorted.')){
 if(t.id=='ab'){const n=$('#an').value.trim();if(n){await j('/api/albums',body({name:n}));refresh()}}};
 // ----- photos
 async function loadP(){P=await j('/api/photos');rP()}
-const shown=()=>{const f=$('#fa').value||'all';const t=$('#ft').value;return P.filter(p=>(f=='all'||(p.album_id||'none')==f)&&(!t||(t=='video')==(p.kind=='video')))};
-function rP(){$('#g').innerHTML=shown().map(p=>`<figure data-id="${p.id}"${sel.has(p.id)?' class=sel':''}><img loading=lazy src="/api/thumb/${p.id}">${p.kind=='video'?`<span class=vb>▶ ${fd(p.duration||0)}</span>`:''}<button class=zoom data-z="${p.id}" title="View full size">⤢</button><button class=del data-d1="${p.id}" title="Delete">🗑</button><input data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="Caption"></figure>`).join('')||'<small>No photos here.</small>';bar()}
+const shown=()=>{const f=$('#fa').value||'all',t=$('#ft').value,src=t=='trash'?TRASH:P;return src.filter(p=>(f=='all'||(p.album_id||'none')==f)&&(!t||t=='trash'||(t=='fav'?p.favorite:t=='hid'?p.hidden:(t=='video')==(p.kind=='video'))))};
+function rP(){const tr=$('#ft').value=='trash';$('#g').innerHTML=shown().map(p=>`<figure data-id="${p.id}" class="${sel.has(p.id)?'sel':''}${p.hidden?' hid':''}"><img loading=lazy src="/api/thumb/${p.id}">${p.favorite?'<span class=fv>★</span>':''}${kbBadge(p)}${p.kind=='video'?`<span class=vb>▶ ${fd(p.duration||0)}</span>`:''}${tr?`<span class=vb style="left:14px;right:auto;top:14px">${Math.max(0,30-Math.floor((Date.now()-p.deleted_at)/864e5))} days left</span>`:`<button class=zoom data-z="${p.id}" title="View full size">⤢</button><button class=del data-d1="${p.id}" title="Delete">🗑</button>`}<input data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="Caption"${tr?' disabled':''}>${SUG[p.id]?`<div class=sg>✨ ${esc(SUG[p.id])} <button data-usesg="${p.id}">Use</button> <button data-nosg="${p.id}">✕</button></div>`:''}${tr?'':`<div class=ab><button data-fav="${p.id}" title="Favourite">${p.favorite?'★':'☆'}</button><button data-hide="${p.id}" title="${p.hidden?'Show on the frame':'Hide from the frame'}">${p.hidden?'👁':'🚫'}</button>${p.kind=='video'?'':`<button data-rot="${p.id}" title="Rotate 90°">⟳</button>`}<button data-sug="${p.id}" title="Suggest a caption">✨</button></div>`}</figure>`).join('')||'<small>Nothing here.</small>';bar()}
 const bar=()=>{$('#bb').hidden=!sel.size;$('#bc').textContent=sel.size+' selected'};
 const refresh=async()=>{await loadA();await loadP()};
-$('#fa').onchange=rP;$('#ft').onchange=rP;
-$('#g').onclick=e=>{if(e.target.dataset.d1){delPhotos([e.target.dataset.d1]);return}if(e.target.dataset.z){lbShow(shown().findIndex(p=>p.id==e.target.dataset.z));$('#lb').showModal();return}if(e.target.tagName=='INPUT')return;const f=e.target.closest('figure');if(!f)return;const id=f.dataset.id;sel.has(id)?sel.delete(id):sel.add(id);f.classList.toggle('sel');bar()};
+$('#fa').onchange=rP;$('#ft').onchange=async()=>{if($('#ft').value=='trash'){TRASH=await j('/api/trash');if(!Array.isArray(TRASH))TRASH=[]}sel.clear();trashUI();rP()};
+$('#g').onclick=e=>{const k=e.target.dataset;if(k.fav){togFlag(k.fav,'favorite');return}if(k.hide){togFlag(k.hide,'hidden');return}if(k.rot){rotPhoto(k.rot);return}if(k.sug){sugOne(k.sug);return}if(k.usesg){useSg(k.usesg);return}if(k.nosg){delete SUG[k.nosg];rP();return}if(e.target.dataset.d1){delPhotos([e.target.dataset.d1]);return}if(e.target.dataset.z){lbShow(shown().findIndex(p=>p.id==e.target.dataset.z));$('#lb').showModal();return}if(e.target.tagName=='INPUT')return;const f=e.target.closest('figure');if(!f)return;const id=f.dataset.id;sel.has(id)?sel.delete(id):sel.add(id);f.classList.toggle('sel');bar()};
 $('#g').onchange=async e=>{if(e.target.dataset.cap){await j('/api/photos/'+e.target.dataset.cap,body({caption:e.target.value},'PATCH'));toast('Saved ✓')}};
 $('#sa').onclick=()=>{shown().forEach(p=>sel.add(p.id));rP()};$('#bx').onclick=()=>{sel.clear();rP()};
 $('#bmv').onclick=async()=>{await j('/api/photos/bulk',body({ids:[...sel],action:'move',album_id:$('#bm').value}));toast('Moved ✓');sel.clear();refresh()};
@@ -176,9 +208,9 @@ async function taken(f){const t=new TextDecoder('latin1').decode(await f.slice(0
 return m?`${m[1]}-${m[2]}-${m[3]}`:new Date(f.lastModified).toISOString().slice(0,10)}
 const up=(d,cb)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('POST','/api/photos');x.upload.onprogress=e=>cb(e.loaded/e.total);
 x.onload=()=>x.status<300?res():rej(new Error(JSON.parse(x.responseText||'{}').error||x.status));x.onerror=()=>rej(new Error('Network error'));x.send(d)});
-async function handle(fs){fs=[...fs];$('#bar').style.display='block';let n=0;
+async function handle(fs){fs=await dupFilter([...fs]);if(!fs.length){$('#st').textContent='';return}$('#bar').style.display='block';let n=0;
 for(const f of fs){$('#st').textContent=`Uploading ${n+1} of ${fs.length}: ${f.name}`;
-try{if(isVid(f)){await uploadVideo(f,(fr,msg)=>{$('#st').textContent=f.name+': '+msg;$('#bar i').style.width=((n+fr)/fs.length*100)+'%'});n++;continue}const t=await taken(f),{file,w,h,th}=await prep(f),d=new FormData();d.append('file',file);d.append('thumb',th,'t.jpg');d.append('taken_at',t);d.append('w',w);d.append('h',h);d.append('album',$('#ua').value);
+try{if(isVid(f)){await uploadVideo(f,(fr,msg)=>{$('#st').textContent=f.name+': '+msg;$('#bar i').style.width=((n+fr)/fs.length*100)+'%'});n++;continue}const t=await taken(f),{file,w,h,th}=await prep(f),d=new FormData();d.append('file',file);d.append('thumb',th,'t.jpg');d.append('taken_at',t);d.append('w',w);d.append('h',h);d.append('album',$('#ua').value);d.append('fp',FP.get(f)||'');
 await up(d,fr=>$('#bar i').style.width=((n+fr)/fs.length*100)+'%')}catch(x){toast(f.name+': '+x.message)}n++}
 $('#bar i').style.width='100%';$('#st').textContent=`Uploaded ${n} photo(s)`;setTimeout(()=>{$('#bar').style.display='none';$('#bar i').style.width=0},1500);refresh()}
 $('#dz').onclick=()=>$('#f').click();$('#f').onchange=e=>{handle(e.target.files);e.target.value=''};
@@ -231,9 +263,9 @@ flush(true);prog(list.length);$('#sst').textContent=`Zipped ${list.length-bad} o
 setTimeout(()=>{bar.style.display='none';$('#sbar i').style.width=0},1500)}
 // delete photos/videos (single or many) from R2 and the database; used by the Media tab and Storage > Photos & videos
 async function delPhotos(ids){if(!ids.length)return;
-if(!await ask(`Permanently delete ${ids.length} item${ids.length==1?'':'s'}? They will be removed from the frame and can't be recovered.`))return;
+if(!await ask(`Move ${ids.length} item${ids.length==1?'':'s'} to Recently deleted? They leave the frame now and can be restored for 30 days.`))return;
 let n=0;for(let i=0;i<ids.length;i+=200){const d=await j('/api/photos/bulk',body({ids:ids.slice(i,i+200),action:'delete'}));if(d.error)break;n+=d.n}
-ids.forEach(i=>{sel.delete(i);exSel.delete(i)});toast(`Deleted ${n} item${n==1?'':'s'}`);await refresh();if(location.hash=='#storage')loadSt()}
+ids.forEach(i=>{sel.delete(i);exSel.delete(i)});toast(`Moved ${n} item${n==1?'':'s'} to Recently deleted`);await refresh();if(location.hash=='#storage')loadSt()}
 async function loadSt(){const ph=sp.startsWith('@photos');$('#sdz').style.display=ph?'none':'';$('#nf').parentElement.style.display=ph?'none':'';return ph?loadPh():loadStR2()}
 async function loadPh(){await getXP();const fn=folderNames(),aid=sp.split('/')[1],tot=XP.reduce((s,p)=>s+(p.bytes||0),0);
 if(sp!==lastPh){exSel.clear();lastPh=sp}
@@ -271,9 +303,10 @@ $('#sdz').onclick=()=>$('#sf2').click();$('#sf2').onchange=e=>{handleS(e.target.
 $('#sdz').ondragover=e=>{e.preventDefault();$('#sdz').classList.add('hov')};$('#sdz').ondragleave=()=>$('#sdz').classList.remove('hov');
 $('#sdz').ondrop=e=>{e.preventDefault();$('#sdz').classList.remove('hov');handleS(e.dataTransfer.files)};
 // ----- overview, lightbox, theme
-async function loadOv(){const[st,m]=await Promise.all([j('/api/stats'),j('/api/music')]),tr=Array.isArray(m)?m.length:0;
+async function loadOv(){const[st,m,me]=await Promise.all([j('/api/stats'),j('/api/music'),j('/api/me')]),tr=Array.isArray(m)?m.length:0;
 const T=[['🖼','Photos',st.photos-st.videos],['🎞','Videos',st.videos],['📁','Albums',st.albums],['🎵','Music tracks',tr],['💾','Photo storage',fsz(st.bytes)]],tips=[];
 const o=location.origin,LK=[['Standard frame',o+'/'],['Frame sign-in (username + PIN)',o+'/login?mode=frame'],['Lite frame (older iPads)',o+'/lite']].map(l=>`<div class=row2><span>${l[0]}<br><a href="${l[1]}">${l[1]}</a></span><button data-copy="${l[1]}">Copy</button></div>`).join('');
+if(!me.viewer)tips.push(['#overview',"Set a separate viewer username and PIN (the VIEWER_USERNAME and VIEWER_PIN secrets) so wall tablets don't hold your admin credentials"]);
 if(!st.photos)tips.push(['#photos','Upload your first photos']);
 if(S.lat===''||S.lon==='')tips.push(['#display','Set a weather location so the overlay can show the weather']);
 if(S.music&&!tr)tips.push(['#storage','Music is on, but the BGM folder has no tracks yet']);
@@ -281,14 +314,20 @@ $('#ov').innerHTML=`<h2>Overview</h2><div class=tiles>${T.map(t=>`<div class=til
 <div class=pg><div class=panel><h3>Quick actions</h3><a href="/" class=tip>▶ Open the standard frame</a><a href="/lite" class=tip>📱 Open the lite frame (older iPads)</a><a href="#photos" class=tip>🖼 Upload photos</a><a href="#photos" class=tip data-upv>🎞 Upload videos</a><a href="#storage" class=tip>🎵 Add music</a></div>
 <div class=panel><h3>Setup checklist</h3>${tips.length?tips.map(t=>`<a href="${t[0]}" class=tip>${t[1]}</a>`).join(''):'<p class=ok>✓ Everything looks good.</p>'}</div></div>
 <div class=panel style="margin-top:14px"><h3>Direct links to the frame</h3>${LK}</div>
+<div class=panel style="margin-top:14px"><h3>Devices</h3><div id=dvl><small>Loading…</small></div><p class=sub>Each frame reports in every 15 seconds. Use the buttons to control it from here. Settings opens that device's own display settings.</p></div>
 ${P.length?`<div class=panel style="margin-top:14px"><h3>Recently added</h3><div class=strip>${P.slice(0,10).map(p=>`<a href="#photos"><img src="/api/thumb/${p.id}" loading=lazy alt=""></a>`).join('')}</div></div>`:''}`}
 let li=0;
-function lbShow(k){const L=shown();if(!L.length)return;li=(k+L.length)%L.length;const p=L[li];const vd=p.kind=='video',v=$('#lbv');$('#lbi').style.display=vd?'none':'block';v.style.display=vd?'block':'none';v.pause();if(vd){v.src='/api/video/'+p.id;v.play().catch(()=>{})}else $('#lbi').src='/api/photo/'+p.id;$('#lbc').textContent=(p.caption?p.caption+'  ·  ':'')+(li+1)+' / '+L.length}
-$('#lb').onclick=e=>{if(e.target.id=='lbp')lbShow(li-1);else if(e.target.id=='lbn')lbShow(li+1);else if(e.target.id=='lbd'){const q=shown()[li];$('#lb').close();if(q)delPhotos([q.id])}else if(e.target.tagName!='VIDEO')$('#lb').close()};
+function lbShow(k){const L=shown();if(!L.length)return;li=(k+L.length)%L.length;const p=L[li];const vd=p.kind=='video',v=$('#lbv');$('#lbi').style.display=vd?'none':'block';v.style.display=vd?'block':'none';v.pause();if(vd){v.src='/api/video/'+p.id;v.play().catch(()=>{})}else $('#lbi').src='/api/photo/'+p.id;$('#lbc').textContent=(p.caption?p.caption+'  ·  ':'')+(li+1)+' / '+L.length;kbLb(p,vd);$('#lbr').hidden=!DEVS.length;$('#lbs').innerHTML=DEVS.map(d=>`<option value="${d.id}">${esc(dname(d))}</option>`).join('')}
+$('#lb').onclick=e=>{if(e.target.closest('#lbk')){if(e.target.id=='lbkp')kbPreview();return}if(e.target.closest('#lbr')){if(e.target.id=='lbsb'){const q=shown()[li];if(q&&$('#lbs').value)devCmd($('#lbs').value,'show',q.id)}return}if(e.target.id=='lbrot'){const q=shown()[li];$('#lb').close();if(q&&q.kind!='video')rotPhoto(q.id);return}if(e.target.id=='lbp')lbShow(li-1);else if(e.target.id=='lbn')lbShow(li+1);else if(e.target.id=='lbd'){const q=shown()[li];$('#lb').close();if(q)delPhotos([q.id])}else if(e.target.tagName!='VIDEO')$('#lb').close()};
 $('#lb').addEventListener('close',()=>$('#lbv').pause());
-addEventListener('keydown',e=>{if(!$('#lb').open)return;if(e.key=='ArrowLeft')lbShow(li-1);if(e.key=='ArrowRight')lbShow(li+1)});
+addEventListener('keydown',e=>{if(!$('#lb').open||['SELECT','INPUT'].includes(e.target.tagName))return;if(e.key=='ArrowLeft')lbShow(li-1);if(e.key=='ArrowRight')lbShow(li+1)});
 $('#th').onclick=()=>{const d=document.documentElement,c=d.dataset.theme||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark');d.dataset.theme=localStorage.theme=c=='dark'?'light':'dark'};
-$('#ov').onclick=e=>{if(e.target.dataset.upv)$('#fv').click();const u=e.target.dataset.copy;if(!u)return;navigator.clipboard?navigator.clipboard.writeText(u).then(()=>toast('Link copied ✓')):prompt('Copy this link',u)};
+$('#ov').onclick=e=>{const t=e.target.dataset;
+if(t.dc){const[ty,id]=t.dc.split(':');devCmd(id,ty);return}
+if(t.dset){curDev=t.dset;location.hash='display';loadS();return}
+if(t.dout){ask('Sign this device out? It returns to the sign-in page within a few seconds.').then(async ok=>{if(ok){await j('/api/devices/'+t.dout+'/revoke',body({}));toast('Signing out…');loadDev()}});return}
+if(t.drm){ask('Forget this device? It will reappear if it is still signed in.').then(async ok=>{if(ok){await j('/api/devices/'+t.drm,{method:'DELETE'});loadDev()}});return}
+if(e.target.dataset.upv)$('#fv').click();const u=e.target.dataset.copy;if(!u)return;navigator.clipboard?navigator.clipboard.writeText(u).then(()=>toast('Link copied ✓')):prompt('Copy this link',u)};
 // ----- video: probe, compress to 1080p in the browser, chunked upload
 const CH=16*1048576,VT={mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'video/webm'};
 const isVid=f=>/^video\//.test(f.type)||/\.(mp4|m4v|mov|webm)$/i.test(f.name);
@@ -332,10 +371,78 @@ const st=await j('/api/video/start',body({size:file.size,mime}));if(!st.id)throw
 try{const parts=[],N=Math.ceil(file.size/CH);
 for(let n=1;n<=N;n++){let r,t=0;for(;;){try{r=await xput(`/api/video/part?id=${st.id}&uploadId=${encodeURIComponent(st.uploadId)}&n=${n}`,file.slice((n-1)*CH,n*CH),fr=>cb(.7+.3*((n-1+fr)/N),`uploading part ${n} of ${N}…`));break}catch(e){if(++t>=3)throw e}}parts.push({partNumber:r.partNumber,etag:r.etag})}
 await xput('/api/video/thumb?id='+st.id,pr.th);
-const d=await j('/api/video/complete',body({id:st.id,uploadId:st.uploadId,parts,duration:pr.d,w:pr.w,h:pr.h,mime,taken_at:new Date(f.lastModified).toISOString().slice(0,10),album:$('#ua').value}));
+const d=await j('/api/video/complete',body({id:st.id,uploadId:st.uploadId,parts,duration:pr.d,w:pr.w,h:pr.h,mime,taken_at:new Date(f.lastModified).toISOString().slice(0,10),album:$('#ua').value,fp:FP.get(f)||''}));
 if(!d.id)throw new Error(d.error||'upload failed')}
 catch(e){await j('/api/video/abort',body({id:st.id,uploadId:st.uploadId}));throw e}}
 $('#bp').onclick=()=>$('#f').click();$('#bv').onclick=()=>$('#fv').click();$('#fv').onchange=e=>{handle(e.target.files);e.target.value=''};
+// ----- v1.9: devices + remote control, per-device settings, favourites/hide, rotate, bin, duplicate warning, AI captions
+let DEVS=[],curDev='',TRASH=[];const SUG={},FP=new Map();
+const ago=t=>{const s=Math.round((Date.now()-t)/1e3);return s<60?'just now':s<3600?Math.round(s/60)+' min ago':s<86400?Math.round(s/3600)+' h ago':Math.round(s/86400)+' d ago'};
+const dname=d=>d.name||(d.kind=='lite'?'Lite':'Standard')+' · '+(/iPad/.test(d.ua)?'iPad':/iPhone/.test(d.ua)?'iPhone':/Android/.test(d.ua)?'Android':/Macintosh/.test(d.ua)?'Mac':/Windows/.test(d.ua)?'Windows':'device')+' ('+d.id.slice(0,4)+')';
+async function loadDev(){const r=await j('/api/devices');DEVS=Array.isArray(r)?r:[];const el=$('#dvl');
+if(el)el.innerHTML=DEVS.length?DEVS.map(d=>{const on=Date.now()-d.last_seen<45e3;return `<div class=row2><span><b>${on?'🟢':'⚪'} <input data-dn="${d.id}" value="${esc(d.name||'')}" placeholder="${esc(dname({...d,name:''}))}"></b><br><small>${d.kind} · ${on?'online':'last seen '+ago(d.last_seen)}${d.overrides?' · custom settings':''}${d.revoked?' · signing out…':''}</small></span><span class=dc><button data-dc="prev:${d.id}" title="Previous">⏮</button><button data-dc="pause:${d.id}" title="Pause">⏸</button><button data-dc="play:${d.id}" title="Play">▶</button><button data-dc="next:${d.id}" title="Next">⏭</button><button data-dc="reload:${d.id}" title="Reload the page">↻</button><button data-dset="${d.id}">Settings</button><button data-dout="${d.id}">Sign out</button><button data-drm="${d.id}" title="Forget">✕</button></span></div>`}).join(''):'<small>No devices yet. Open the frame on a tablet and it will appear here.</small>';
+fillDsel()}
+$('#ov').onchange=e=>{if(e.target.dataset.dn)j('/api/devices/'+e.target.dataset.dn,body({name:e.target.value},'PATCH')).then(()=>{toast('Saved ✓');loadDev()})};
+setInterval(()=>{if((location.hash||'#overview')=='#overview')loadDev()},1e4);
+async function devCmd(id,type,photo){const r=await j('/api/devices/'+id+'/cmd',body({type,photo}));if(!r.error)toast('Sent ✓')}
+function fillDsel(){const v=curDev;$('#dsel').innerHTML='<option value="">All devices (default)</option>'+DEVS.map(d=>`<option value="${d.id}">${esc(dname(d))}</option>`).join('');curDev=DEVS.some(d=>d.id==v)?v:'';$('#dsel').value=curDev}
+function dUI(eff){const on=!!curDev;$('#drs').hidden=!on;$('#dnote').textContent=on?'Changes below apply to this device only; anything you leave alone follows the default.':'';
+const al=$('#dal');al.hidden=!on;if(on)al.innerHTML='<b>Albums shown on this device</b><br>'+[{id:'none',name:'Unsorted'},...A].map(a=>`<label><input type=checkbox data-dalb="${a.id}"${(eff.hide_albums||[]).includes(a.id)?'':' checked'}> ${esc(a.name)}</label>`).join('')}
+$('#dsel').onchange=()=>{curDev=$('#dsel').value;loadS()};
+$('#drs').onclick=async()=>{await j('/api/devices/'+curDev+'/overrides',body({},'PUT'));const dv=DEVS.find(d=>d.id==curDev);if(dv)dv.overrides=null;toast('Reset to default ✓');loadS()};
+$('#dal').onchange=async()=>{const hide=[...$('#dal').querySelectorAll('[data-dalb]')].filter(x=>!x.checked).map(x=>x.dataset.dalb),dv=DEVS.find(d=>d.id==curDev);let o={};try{o=JSON.parse(dv.overrides||'{}')}catch(e){}
+o.hide_albums=hide;const r=await j('/api/devices/'+curDev+'/overrides',body(o,'PUT'));if(!r.error){dv.overrides=JSON.stringify(r);toast('Saved for this device ✓')}};
+// favourites / hide / rotate
+async function togFlag(id,key){const p=P.find(x=>x.id==id);if(!p)return;await j('/api/photos/'+id,body({[key]:!p[key]},'PATCH'));p[key]=p[key]?0:1;rP()}
+async function rotPhoto(id){toast('Rotating…');try{const r=await fetch('/api/dl/'+id),b=await createImageBitmap(await r.blob(),{imageOrientation:'from-image'}),w=b.height,h=b.width,c=new OffscreenCanvas(w,h),x=c.getContext('2d');
+x.translate(w/2,h/2);x.rotate(Math.PI/2);x.drawImage(b,-b.width/2,-b.height/2);
+const k=Math.min(1,400/Math.max(w,h)),t=new OffscreenCanvas(Math.round(w*k),Math.round(h*k));t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+const d=new FormData();d.append('file',await c.convertToBlob({type:'image/jpeg',quality:.92}),'p.jpg');d.append('thumb',await t.convertToBlob({type:'image/jpeg',quality:.8}),'t.jpg');d.append('old',id);d.append('w',w);d.append('h',h);
+const o=await(await fetch('/api/photos/replace',{method:'POST',body:d})).json();if(!o.id)throw new Error(o.error||'failed');sel.delete(id);toast('Rotated ✓');await refresh()}catch(e){toast('Rotate failed: '+e.message)}}
+$('#bfv').onclick=async()=>{const ids=[...sel],all=ids.every(i=>(P.find(p=>p.id==i)||{}).favorite);await j('/api/photos/bulk',body({ids,action:'favorite',value:!all}));await refresh()};
+$('#bhd').onclick=async()=>{await j('/api/photos/bulk',body({ids:[...sel],action:'hide',value:true}));toast('Hidden from the frame');await refresh()};
+$('#bsh').onclick=async()=>{await j('/api/photos/bulk',body({ids:[...sel],action:'hide',value:false}));toast('Shown on the frame');await refresh()};
+// recently deleted
+const trashUI=()=>{const t=$('#ft').value=='trash';['bm','bmv','bfv','bhd','bsh','bsg','bkm','bks','bkb','bdl'].forEach(i=>$('#'+i).hidden=t);$('#brs').hidden=$('#bpg').hidden=!t};
+$('#brs').onclick=async()=>{await j('/api/photos/bulk',body({ids:[...sel],action:'restore'}));toast('Restored ✓');sel.clear();TRASH=await j('/api/trash');await refresh();rP()};
+$('#bpg').onclick=async()=>{if(!await ask(`Permanently delete ${sel.size} item${sel.size==1?'':'s'}? This cannot be undone.`))return;await j('/api/photos/bulk',body({ids:[...sel],action:'purge'}));sel.clear();TRASH=await j('/api/trash');rP()};
+// duplicate warning: a quick fingerprint (size + first and last 256 KB) is compared with the library
+async function fprint(f){const sz=f.size,hd=await f.slice(0,262144).arrayBuffer(),tl=await f.slice(Math.max(0,sz-262144),sz).arrayBuffer(),pre=new TextEncoder().encode(sz+':'),u=new Uint8Array(pre.length+hd.byteLength+tl.byteLength);
+u.set(pre,0);u.set(new Uint8Array(hd),pre.length);u.set(new Uint8Array(tl),pre.length+hd.byteLength);return[...new Uint8Array(await crypto.subtle.digest('SHA-256',u))].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const askDup=m=>new Promise(r=>{$('#ddm').textContent=m;const d=$('#dd');d.returnValue='';d.onclose=()=>r(d.returnValue||'cancel');d.showModal()});
+async function dupFilter(fs){$('#st').textContent='Checking for duplicates…';const fp=[];for(const f of fs){const h=await fprint(f);FP.set(f,h);fp.push(h)}
+const r=await j('/api/photos/check',body({fps:fp})),have=new Set(r.dups||[]),seen=new Set(),skip=new Set();
+fs.forEach(f=>{const h=FP.get(f);if(have.has(h)||seen.has(h))skip.add(f);seen.add(h)});
+if(!skip.size)return fs;const names=[...skip].map(f=>f.name);
+const ch=await askDup(`${skip.size} of ${fs.length} file${fs.length==1?'':'s'} look like items you already have (or repeat within this batch):\n${names.slice(0,6).join(', ')}${names.length>6?' …':''}`);
+return ch=='cancel'?[]:ch=='skip'?fs.filter(f=>!skip.has(f)):fs}
+// AI caption suggestions (Cloudflare Workers AI)
+async function sugOne(id,quiet){if(!quiet)toast('Thinking of a caption…');const r=await j('/api/photos/'+id+'/suggest',{method:'POST'});if(r.caption){SUG[id]=r.caption;rP()}}
+async function useSg(id){const t=SUG[id];await j('/api/photos/'+id,body({caption:t},'PATCH'));const p=P.find(x=>x.id==id);if(p)p.caption=t;delete SUG[id];rP();toast('Saved ✓')}
+$('#bsg').onclick=async()=>{const ids=[...sel].slice(0,10);if(!ids.length)return;toast('Asking the AI…');for(const id of ids)await sugOne(id,true);toast('Suggestions ready ✨ Use or dismiss each one')};
 async function loadM(){const m=await j('/api/music');$('#tr').innerHTML=!Array.isArray(m)?'':m.length?`<small>${m.length} track${m.length==1?'':'s'}: ${m.map(x=>esc(x.name)).join(', ')}</small>`:'<small>No tracks found yet.</small>'}
-(async()=>{await loadS();loadM();j('/api/nowcast/areas').then(a=>Array.isArray(a)&&a.forEach(n=>$('#nca').append(new Option(n))));await refresh();tab()})();
+// ----- v2.0: Ken Burns choices per photo (viewer + bulk), live preview
+const KBL=[['lr','Pan left → right'],['rl','Pan right → left'],['tlbr','Diagonal top-left → bottom-right'],['trbl','Diagonal top-right → bottom-left'],['bltr','Diagonal bottom-left → top-right'],['brtl','Diagonal bottom-right → top-left'],['in','Zoom in'],['out','Zoom out']],
+KBSL=[['slow','Slow'],['medium','Medium'],['fast','Fast']],KBN=Object.fromEntries([...KBL,...KBSL,['none','No movement']]);
+const KBG={all:['lr','rl','tlbr','trbl','bltr','brtl','in','out'],zoom:['in','out'],pan:['lr','rl'],diag:['tlbr','trbl','bltr','brtl']},KBD={lr:[-1,0],rl:[1,0],tlbr:[-1,-1],trbl:[1,-1],bltr:[-1,1],brtl:[1,1]},KBT={slow:1,medium:.62,fast:.35};
+const kbO=(a,first,extra)=>(extra?`<option value="-">${extra}</option>`:'')+`<option value="">${first}</option>`+a.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join(''),kbMv=[['none','No movement'],...KBL];
+$('#lbkm').innerHTML=kbO(kbMv,'Movement: follow general setting');$('#lbks').innerHTML=kbO(KBSL,'Speed: follow general setting');
+$('#bkm').innerHTML=kbO(kbMv,'Ken Burns: follow general setting','Ken Burns movement: no change');$('#bks').innerHTML=kbO(KBSL,'Speed: follow general setting','Ken Burns speed: no change');
+const kbBadge=p=>p.kb_move||p.kb_speed?`<span class=kbb title="Ken Burns: ${esc((KBN[p.kb_move]||'general movement')+' · '+(KBN[p.kb_speed]||'general speed'))}">🎬</span>`:'';
+function kbLb(p,vd){kbStop();$('#lbk').hidden=vd||$('#ft').value=='trash';$('#lbkm').value=p.kb_move||'';$('#lbks').value=p.kb_speed||''}
+function kbStop(){$('#lbi').classList.remove('kb');$('#lbkp').textContent='▶ Preview'}
+function kbPreview(){const q=shown()[li],img=$('#lbi');if(!q||q.kind=='video')return;if(img.classList.contains('kb'))return kbStop();
+let m=$('#lbkm').value,sp=$('#lbks').value;if(m=='none')return toast('This photo is set to no movement');
+if(!m){if(!S.kb_on)return toast('Ken Burns is switched off (Display > Ken Burns). Pick a movement here to preview it.');m=S.kb_mode||'all'}
+if(KBG[m])m=KBG[m][Math.floor(Math.random()*KBG[m].length)];sp=sp||S.kb_speed||'slow';if(!KBT[sp])sp=['slow','medium','fast'][Math.floor(Math.random()*3)];
+const z=Math.min(2,Math.max(1.05,(+S.kb_zoom||125)/100)),ps=Math.min(1.5,Math.max(1.05,(+S.kb_pan||115)/100)),st=img.style;let x0=0,y0=0,x1=0,y1=0,s0=ps,s1=ps;
+if(m=='in'){s0=1;s1=z}else if(m=='out'){s0=z;s1=1}else{const d=(ps-1)/2*100,c=KBD[m]||[0,0];x0=-c[0]*d;x1=c[0]*d;y0=-c[1]*d;y1=c[1]*d}
+st.setProperty('--x0',x0+'%');st.setProperty('--y0',y0+'%');st.setProperty('--x1',x1+'%');st.setProperty('--y1',y1+'%');st.setProperty('--s0',s0);st.setProperty('--s1',s1);
+st.setProperty('--kd',Math.max(2,((S.interval||15)+1.5)*KBT[sp]).toFixed(2)+'s');st.setProperty('--ke',sp=='slow'?'linear':'cubic-bezier(.25,.46,.45,.94)');
+img.classList.remove('kb');void img.offsetWidth;img.classList.add('kb');$('#lbkp').textContent='■ Stop';toast((KBN[m]||m)+' · '+sp+' (as the frame would show it)')}
+$('#lbk').onchange=async()=>{const q=shown()[li];if(!q)return;kbStop();const b={kb_move:$('#lbkm').value,kb_speed:$('#lbks').value},r=await j('/api/photos/'+q.id,body(b,'PATCH'));
+if(!r.error){q.kb_move=b.kb_move||null;q.kb_speed=b.kb_speed||null;toast('Saved ✓');rP()}};
+$('#bkb').onclick=async()=>{const b={ids:[...sel],action:'kb'};if($('#bkm').value!='-')b.kb_move=$('#bkm').value;if($('#bks').value!='-')b.kb_speed=$('#bks').value;
+if(!('kb_move' in b)&&!('kb_speed' in b))return toast('Choose a movement or a speed first');const r=await j('/api/photos/bulk',body(b));if(!r.error){toast('Ken Burns set ✓');await refresh()}};
+(async()=>{await loadDev();await loadS();loadM();j('/api/nowcast/areas').then(a=>Array.isArray(a)&&a.forEach(n=>$('#nca').append(new Option(n))));await refresh();tab()})();
 </script></body></html>
