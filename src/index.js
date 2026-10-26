@@ -1,4 +1,6 @@
 const E = new TextEncoder();
+const VERSION = '2.0';
+const DEVID = /^[A-Za-z0-9_-]{8,40}$/;
 const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'];
 const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 61: 'Rain', 63: 'Rain', 65: 'Heavy rain',
   71: 'Snow', 73: 'Snow', 75: 'Heavy snow', 80: 'Showers', 81: 'Showers', 82: 'Heavy showers', 95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm' };
@@ -8,8 +10,8 @@ async function weatherFor(S) {
   const k = S.lat + ',' + S.lon + S.units;
   if (WX.k === k && Date.now() - WX.t < 6e5) return WX.v;
   try {
-    const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=2&timezone=auto&temperature_unit=${S.units === 'F' ? 'fahrenheit' : 'celsius'}`)).json();
-    WX = { k, t: Date.now(), v: { t: Math.round(r.current.temperature_2m), c: WMO[r.current.weather_code] || '', tm: r.daily && r.daily.time && r.daily.time.length > 1 ? { c: WMO[r.daily.weather_code[1]] || '', hi: Math.round(r.daily.temperature_2m_max[1]), lo: Math.round(r.daily.temperature_2m_min[1]), p: r.daily.precipitation_probability_max ? r.daily.precipitation_probability_max[1] : null } : null } };
+    const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(S.lat)}&longitude=${encodeURIComponent(S.lon)}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&forecast_days=2&timezone=auto&temperature_unit=${S.units === 'F' ? 'fahrenheit' : 'celsius'}`)).json();
+    WX = { k, t: Date.now(), v: { t: Math.round(r.current.temperature_2m), c: WMO[r.current.weather_code] || '', tm: r.daily && r.daily.time && r.daily.time.length > 1 ? { c: WMO[r.daily.weather_code[1]] || '', hi: Math.round(r.daily.temperature_2m_max[1]), lo: Math.round(r.daily.temperature_2m_min[1]), p: r.daily.precipitation_probability_max ? r.daily.precipitation_probability_max[1] : null } : null, sun: r.daily && r.daily.sunrise ? { rise: r.daily.sunrise[0].slice(11, 16), set: r.daily.sunset[0].slice(11, 16) } : null } };
   } catch { if (WX.k !== k) return null; }
   return WX.v;
 }
@@ -75,6 +77,44 @@ async function uvFor(env) {
   if (!d || Date.now() - new Date(d.hour) > 3 * 36e5) return null; // readings run 7am-7pm
   return { v: d.v, band: uvBand(d.v), hour: d.hour };
 }
+// ---- per-device settings, 4-day outlook, validation shared by device overrides
+async function settingsFor(env, dev) {
+  const S = await getSettings(env);
+  if (!DEVID.test(dev || '')) return S;
+  const r = await env.DB.prepare('SELECT overrides FROM devices WHERE id=?').bind(dev).first();
+  try { return r && r.overrides ? { ...S, ...legacy(JSON.parse(r.overrides)) } : S; } catch { return S; }
+}
+function cleanSettings(b) {
+  const out = {};
+  for (const k in D) {
+    if (!(k in b)) continue;
+    let v = b[k];
+    if (Array.isArray(D[k])) { out[k] = (Array.isArray(v) ? v : []).map(String).filter(x => /^([0-9a-f-]{36}|none)$/.test(x)).slice(0, 100); continue; }
+    const t = typeof D[k];
+    if (t === 'boolean') v = !!v; else if (t === 'number') { v = Number(v); if (!isFinite(v)) continue; } else v = String(v).slice(0, 64);
+    if (ENUM[k] && !ENUM[k].includes(v)) continue;
+    if (/^sleep_(wk_)?(start|end)$/.test(k) && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) continue;
+    out[k] = v;
+  }
+  const c = (k, lo, hi) => { if (k in out) out[k] = Math.min(hi, Math.max(lo, out[k])); };
+  c('opacity', 0.05, 0.9); c('interval', 3, 3600); c('music_volume', 0, 1); c('video_max', 0, 300); c('sleep_level', 0, 50); c('light_min', 5, 100); c('overlay_scale', 60, 180); c('fav_boost', 1, 5); c('kb_zoom', 105, 200); c('kb_pan', 105, 150);
+  return out;
+}
+let OLC = { t: 0, d: null };
+async function outlookFor(env) { // NEA 4-day outlook; field names are read defensively because the feed has used two layouts
+  if (Date.now() - OLC.t > 60 * 6e4) {
+    try {
+      const d = await neaGet(env, 'four-day-outlook'), rec = (d.records || d.items || [])[0], out = [], WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (const f of (rec && rec.forecasts) || []) {
+        const fc = f.forecast, t = f.temperature || {}, date = String(f.date || f.day || (f.timestamp || '').slice(0, 10));
+        if (typeof t.low !== 'number' || typeof t.high !== 'number') continue;
+        out.push({ label: /^\d{4}-\d\d-\d\d/.test(date) ? WD[new Date(date.slice(0, 10) + 'T12:00:00Z').getUTCDay()] : date.slice(0, 3), text: typeof fc === 'string' ? fc : (fc && (fc.text || fc.summary)) || '', lo: t.low, hi: t.high });
+      }
+      OLC = { t: Date.now(), d: out.length ? out : null };
+    } catch { OLC.t = Date.now() - 50 * 6e4; }
+  }
+  return OLC.d;
+}
 function tzOffset(tz) { // minutes east of UTC, so the lite page can show the right local time without Intl
   try {
     const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date());
@@ -94,8 +134,15 @@ const H = {
   'Content-Security-Policy': "default-src 'self'; media-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-ancestors 'none'",
 };
 const D = { overlay: true, position: 'bl', opacity: 0.35, units: 'C', h24: true, show_time: true, show_date: true,
-  show_weather: true, show_temp: true, show_meta: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false, sleep_on: true, sleep_start: '20:00', sleep_end: '06:00', sleep_level: 5, show_psi: true, psi_region: 'national', sleep_music_off: true, light_sensor: false, light_min: 25, show_nowcast: true, nowcast_area: '', show_uv: true, overlay_scale: 100 };
-const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'], psi_region: ['national', 'north', 'south', 'east', 'west', 'central'] };
+  show_weather: true, show_temp: true, show_caption: true, show_info: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false, sleep_on: true, sleep_start: '20:00', sleep_end: '06:00', sleep_level: 5, show_psi: true, psi_region: 'national', sleep_music_off: true, light_sensor: false, light_min: 25, show_nowcast: true, nowcast_area: '', show_uv: true, overlay_scale: 100, sleep_wk_on: false, sleep_wk_start: '21:00', sleep_wk_end: '07:00', sleep_from_sunset: false, show_sun: true, show_outlook: true, show_warn: true, fav_boost: 3,
+  kb_on: false, kb_mode: 'all', kb_speed: 'slow', kb_zoom: 125, kb_pan: 115 };
+const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'], psi_region: ['national', 'north', 'south', 'east', 'west', 'central'],
+  kb_mode: ['all', 'zoom', 'pan', 'diag', 'lr', 'rl', 'tlbr', 'trbl', 'bltr', 'brtl', 'in', 'out'], kb_speed: ['slow', 'medium', 'fast', 'random'] };
+// Ken Burns choices stored per photo (empty = follow the general setting)
+const KBM = ['none', 'lr', 'rl', 'tlbr', 'trbl', 'bltr', 'brtl', 'in', 'out'], KBS = ['slow', 'medium', 'fast'];
+const NEED_MIG = 'Ken Burns per-photo settings need migration-v2.0.sql to be run once in the D1 Console';
+// v1.9 and earlier had one "Photo info" switch (show_meta); it became two: caption and photo info
+const legacy = o => { if (o && 'show_meta' in o) { if (!('show_caption' in o)) o.show_caption = !!o.show_meta; if (!('show_info' in o)) o.show_info = !!o.show_meta; delete o.show_meta; } return o; };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json', ...h } });
 const hmac = async (k, m) => new Uint8Array(await crypto.subtle.sign('HMAC',
   await crypto.subtle.importKey('raw', E.encode(k), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), E.encode(m)));
@@ -104,10 +151,17 @@ async function same(a, b) { // constant-time compare via fixed-length HMACs
   const [x, y] = await Promise.all([hmac('cmp', a), hmac('cmp', b)]);
   let d = 0; for (let i = 0; i < 32; i++) d |= x[i] ^ y[i]; return d === 0;
 }
+// Optional separate viewer login: when VIEWER_USERNAME and VIEWER_PIN are both set, the frame sign-in uses them instead of the admin
+// username/PIN. Viewer sessions are bound to those values, so changing either one signs every viewer device out.
+const viewerOn = env => !!(env.VIEWER_USERNAME && env.VIEWER_PIN);
+async function sessMsg(env, exp, sc) {
+  if (sc !== 'f' || !viewerOn(env)) return exp + '.' + sc;
+  return exp + '.f.' + hex(await hmac(env.SESSION_SECRET, 'viewer:' + env.VIEWER_USERNAME + ':' + env.VIEWER_PIN)).slice(0, 16);
+}
 async function authed(req, env) {
   const m = (req.headers.get('Cookie') || '').match(/(?:^|; )pf=(\d+)\.([af])\.([0-9a-f]+)/);
   if (!m || +m[1] < Date.now()) return null;
-  return (await same(m[3], hex(await hmac(env.SESSION_SECRET, m[1] + '.' + m[2])))) ? m[2] : null;
+  return (await same(m[3], hex(await hmac(env.SESSION_SECRET, await sessMsg(env, m[1], m[2]))))) ? m[2] : null;
 }
 const num = (v, d) => { const n = parseInt(v); return isNaN(n) ? d : n; };
 
@@ -121,12 +175,12 @@ async function login(req, env) {
   const b = lite ? Object.fromEntries(await req.formData().then(f => [...f.entries()]).catch(() => [])) : await req.json().catch(() => ({}));
   const fm = lite || b.mode === 'frame'; // frame mode: username + PIN only, view-only session
   const checks = await Promise.all([
-    same(String(b.username || ''), env.FRAME_USERNAME), same(String(b.pin || ''), env.FRAME_PIN),
+    same(String(b.username || ''), fm && viewerOn(env) ? env.VIEWER_USERNAME : env.FRAME_USERNAME), same(String(b.pin || ''), fm && viewerOn(env) ? env.VIEWER_PIN : env.FRAME_PIN),
     fm ? true : same(String(b.password || ''), env.FRAME_PASSWORD)]);
   if (checks.every(Boolean)) {
     await env.DB.prepare('DELETE FROM login_attempts WHERE ip=?').bind(ip).run();
     const days = fm ? 90 : 30, sc = fm ? 'f' : 'a', exp = String(now + days * 864e5);
-    const tok = `${exp}.${sc}.${hex(await hmac(env.SESSION_SECRET, exp + '.' + sc))}`;
+    const tok = `${exp}.${sc}.${hex(await hmac(env.SESSION_SECRET, await sessMsg(env, exp, sc)))}`;
     return res(200, { ok: true, next: fm ? '/' : '/admin' }, { 'Set-Cookie': `pf=${tok}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${days * 86400}` });
   }
   const win = num(env.FAIL_WINDOW_MINUTES, 15) * 6e4, lock = num(env.LOCK_MINUTES, 30) * 6e4, max = num(env.MAX_FAILS, 5);
@@ -140,7 +194,7 @@ async function login(req, env) {
 
 const getSettings = async env => {
   const r = await env.DB.prepare("SELECT value FROM settings WHERE key='config'").first();
-  return { ...D, ...(r ? JSON.parse(r.value) : {}) };
+  return { ...D, ...legacy(r ? JSON.parse(r.value) : {}) };
 };
 const page = async (env, req, n) => {
   const r = await env.ASSETS.fetch(new Request(new URL(`/${n}.html`, req.url)));
@@ -161,9 +215,9 @@ async function route(req, env) {
   if (p === '/api/login' && m === 'POST') return login(req, env);
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
-  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: '1.7' });
-  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/api/nowcast' || p === '/api/uv' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
-  if (sc === 'f' && !viewOk && p !== '/api/logout')
+  if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: VERSION, viewer: viewerOn(env), ai: !!env.AI });
+  const viewOk = m === 'GET' && (p === '/' || p === '/lite' || p === '/api/lite' || p === '/api/psi' || p === '/api/nowcast' || p === '/api/uv' || p === '/api/outlook' || p === '/lite/logout' || p === '/api/photos' || p === '/api/settings' || p === '/api/albums' || p === '/api/music' || p.startsWith('/api/music/') || /^\/api\/(photo|video)\/[0-9a-f-]{36}$/.test(p));
+  if (sc === 'f' && !viewOk && p !== '/api/logout' && !(m === 'POST' && p === '/api/device/ping'))
     return p.startsWith('/api/') ? json({ error: 'forbidden' }, 403) : Response.redirect(u.origin + '/login?mode=admin', 302);
 
   if (p === '/' ) return page(env, req, 'frame');
@@ -172,7 +226,7 @@ async function route(req, env) {
   if (p === '/lite/logout') return new Response(null, { status: 302, headers: { Location: '/lite/login', 'Set-Cookie': 'pf=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0' } });
   if (p === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': 'pf=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0' });
 
-  if (p === '/api/settings' && m === 'GET') return json(await getSettings(env));
+  if (p === '/api/settings' && m === 'GET') return json(await settingsFor(env, u.searchParams.get('dev')));
   if (p === '/api/settings' && m === 'PUT') {
     const b = await req.json().catch(() => ({})), cur = await getSettings(env);
     for (const k in D) {
@@ -189,13 +243,18 @@ async function route(req, env) {
     cur.sleep_level = Math.min(50, Math.max(0, cur.sleep_level));
     cur.light_min = Math.min(100, Math.max(5, cur.light_min));
     cur.overlay_scale = Math.min(180, Math.max(60, cur.overlay_scale));
-    for (const k of ['sleep_start', 'sleep_end']) if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(cur[k])) cur[k] = D[k];
+    cur.fav_boost = Math.min(5, Math.max(1, cur.fav_boost));
+    cur.kb_zoom = Math.min(200, Math.max(105, cur.kb_zoom)); cur.kb_pan = Math.min(150, Math.max(105, cur.kb_pan));
+    for (const k of ['sleep_start', 'sleep_end', 'sleep_wk_start', 'sleep_wk_end']) if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(cur[k])) cur[k] = D[k];
     await env.DB.prepare("INSERT INTO settings(key,value) VALUES('config',?1) ON CONFLICT(key) DO UPDATE SET value=?1").bind(JSON.stringify(cur)).run();
     return json(cur);
   }
 
-  if (p === '/api/photos' && m === 'GET')
-    return json((await env.DB.prepare('SELECT id,album_id,kind,duration,bytes,uploaded_at,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results);
+  if (p === '/api/photos' && m === 'GET') {
+    const q = c => `SELECT id,album_id,kind,duration,bytes,uploaded_at,caption,taken_at,favorite,hidden${c} FROM photos WHERE deleted_at IS NULL ORDER BY uploaded_at DESC`;
+    try { return json((await env.DB.prepare(q(',kb_move,kb_speed')).all()).results); } // frames keep playing even if migration-v2.0.sql has not been run yet
+    catch { return json((await env.DB.prepare(q('')).all()).results); }
+  }
   if (p === '/api/photos' && m === 'POST') {
     const fd = await req.formData().catch(() => null), f = fd?.get('file');
     if (!f || typeof f === 'string') return json({ error: 'No file' }, 400);
@@ -213,8 +272,8 @@ async function route(req, env) {
       const tb = await th.arrayBuffer(), t8 = new Uint8Array(tb.slice(0, 2));
       if (t8[0] === 0xFF && t8[1] === 0xD8) await env.BUCKET.put(id + '-t', tb, { httpMetadata: { contentType: 'image/jpeg' } });
     }
-    await env.DB.prepare('INSERT INTO photos(id,album_id,caption,taken_at,width,height,bytes,uploaded_at) VALUES(?,?,?,?,?,?,?,?)')
-      .bind(id, aid, '', taken, w, h, buf.byteLength, Date.now()).run();
+    await env.DB.prepare('INSERT INTO photos(id,album_id,caption,taken_at,width,height,bytes,uploaded_at,fp) VALUES(?,?,?,?,?,?,?,?,?)')
+      .bind(id, aid, '', taken, w, h, buf.byteLength, Date.now(), String(fd.get('fp') || '').slice(0, 64)).run();
     return json({ id });
   }
   // ---- video: chunked multipart upload through the Worker, and range playback
@@ -248,8 +307,8 @@ async function route(req, env) {
     const al = String(b.album || ''), aid = /^[0-9a-f-]{36}$/.test(al) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(al).first() ? al : null;
     let obj; try { obj = await env.BUCKET.resumeMultipartUpload(b.id, b.uploadId).complete(b.parts.map(x => ({ partNumber: +x.partNumber, etag: String(x.etag) }))); }
     catch { return json({ error: 'Upload could not be completed' }, 400); }
-    await env.DB.prepare("INSERT INTO photos(id,album_id,kind,duration,mime,caption,taken_at,width,height,bytes,uploaded_at) VALUES(?,?,'video',?,?,'',?,?,?,?,?)")
-      .bind(b.id, aid, d, String(b.mime || '').slice(0, 40), String(b.taken_at || '').slice(0, 10), num(b.w, 0), num(b.h, 0), obj.size, Date.now()).run();
+    await env.DB.prepare("INSERT INTO photos(id,album_id,kind,duration,mime,caption,taken_at,width,height,bytes,uploaded_at,fp) VALUES(?,?,'video',?,?,'',?,?,?,?,?,?)")
+      .bind(b.id, aid, d, String(b.mime || '').slice(0, 40), String(b.taken_at || '').slice(0, 10), num(b.w, 0), num(b.h, 0), obj.size, Date.now(), String(b.fp || '').slice(0, 64)).run();
     return json({ id: b.id });
   }
   const dm = p.match(/^\/api\/dl\/([0-9a-f-]{36})$/); // full-size download for the admin export (not cached by the service worker)
@@ -271,20 +330,21 @@ async function route(req, env) {
     h['Content-Length'] = String(o.size); return new Response(o.body, { headers: h });
   }
   if (p === '/api/nowcast/areas' && m === 'GET') return json(((await nowcastData(env)) || { meta: [] }).meta.map(a => a.name));
-  if (p === '/api/nowcast' && m === 'GET') return json(await nowcastFor(await getSettings(env), env));
+  if (p === '/api/nowcast' && m === 'GET') return json(await nowcastFor(await settingsFor(env, u.searchParams.get('dev')), env));
   if (p === '/api/uv' && m === 'GET') return json(await uvFor(env));
-  if (p === '/api/psi' && m === 'GET') return json(await psiFor(await getSettings(env), env));
+  if (p === '/api/outlook' && m === 'GET') return json(await outlookFor(env));
+  if (p === '/api/psi' && m === 'GET') return json(await psiFor(await settingsFor(env, u.searchParams.get('dev')), env));
   if (p === '/api/lite' && m === 'GET') { // everything the lite frame needs in one small response
-    const S = await getSettings(env), hid = S.hide_albums || [];
-    const rows = (await env.DB.prepare('SELECT id,album_id,kind,duration,bytes,uploaded_at,caption,taken_at FROM photos ORDER BY uploaded_at DESC').all()).results
-      .filter(r => !hid.includes(r.album_id || 'none') && (r.kind === 'video' ? (S.lite_videos && S.content !== 'photos') : S.content !== 'videos'))
-      .map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at, kind: r.kind, duration: r.duration }));
+    const S = await settingsFor(env, u.searchParams.get('dev')), hid = S.hide_albums || [];
+    const rows = (await env.DB.prepare('SELECT id,album_id,kind,duration,bytes,uploaded_at,caption,taken_at,favorite,hidden FROM photos WHERE deleted_at IS NULL ORDER BY uploaded_at DESC').all()).results
+      .filter(r => !r.hidden && !hid.includes(r.album_id || 'none') && (r.kind === 'video' ? (S.lite_videos && S.content !== 'photos') : S.content !== 'videos'))
+      .map(r => ({ id: r.id, caption: r.caption, taken_at: r.taken_at, kind: r.kind, duration: r.duration, favorite: r.favorite }));
     const { hide_albums, music, music_volume, music_shuffle, lat, lon, tz, ...pub } = S;
-    const [w, psi, nc, uv] = await Promise.all([weatherFor(S), S.show_psi ? psiFor(S, env) : null, S.show_nowcast ? nowcastFor(S, env) : null, S.show_uv ? uvFor(env) : null]);
-    return json({ s: pub, p: rows, w, psi, nc, uv, off: tzOffset(S.tz) });
+    const [w, psi, nc, uv, out] = await Promise.all([weatherFor(S), S.show_psi ? psiFor(S, env) : null, S.show_nowcast ? nowcastFor(S, env) : null, S.show_uv ? uvFor(env) : null, S.show_outlook ? outlookFor(env) : null]);
+    return json({ s: pub, p: rows, w, psi, nc, uv, out, off: tzOffset(S.tz) });
   }
   if (p === '/api/stats' && m === 'GET') {
-    const s = await env.DB.prepare("SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes, COALESCE(SUM(kind='video'),0) videos FROM photos").first();
+    const s = await env.DB.prepare("SELECT COUNT(*) photos, COALESCE(SUM(bytes),0) bytes, COALESCE(SUM(kind='video'),0) videos FROM photos WHERE deleted_at IS NULL").first();
     const a = await env.DB.prepare('SELECT COUNT(*) n FROM albums').first();
     return json({ photos: s.photos, bytes: s.bytes, videos: s.videos, albums: a.n });
   }
@@ -369,10 +429,95 @@ async function route(req, env) {
     if (!o) return json({ error: 'Not found' }, 404);
     return new Response(o.body, { headers: { 'Content-Type': o.httpMetadata.contentType, 'Cache-Control': 'private, max-age=86400, immutable' } });
   }
+  // ---- devices: heartbeat + remote commands (frames), management (admin only)
+  if (p === '/api/device/ping' && m === 'POST') {
+    const b = await req.json().catch(() => ({})), id = String(b.id || '');
+    if (!DEVID.test(id)) return json({ error: 'Bad id' }, 400);
+    const now = Date.now(), ua = String(req.headers.get('User-Agent') || '').slice(0, 160), kind = b.kind === 'lite' ? 'lite' : 'standard', ver = String(b.ver || '').slice(0, 12);
+    let d = await env.DB.prepare('SELECT * FROM devices WHERE id=?').bind(id).first();
+    if (d && d.revoked) { await env.DB.prepare('DELETE FROM devices WHERE id=?').bind(id).run(); return json({ revoked: true }); }
+    if (!d) { await env.DB.prepare('INSERT INTO devices(id,name,kind,ua,first_seen,last_seen,ver) VALUES(?,?,?,?,?,?,?)').bind(id, '', kind, ua, now, now, ver).run(); d = { name: '', cmd: null, last_seen: now, ver }; }
+    let cmd = null; try { cmd = d.cmd ? JSON.parse(d.cmd) : null; } catch {}
+    const ack = !!cmd && +b.ack === cmd.seq;
+    if (ack || now - d.last_seen > 50e3 || d.ver !== ver) await env.DB.prepare('UPDATE devices SET last_seen=?, ver=?, ua=?, kind=?, cmd=? WHERE id=?').bind(now, ver, ua, kind, ack ? null : d.cmd, id).run();
+    return json({ ver: VERSION, name: d.name || '', cmd: ack ? null : cmd });
+  }
+  if (p === '/api/devices' && m === 'GET')
+    return json((await env.DB.prepare('SELECT id,name,kind,ua,first_seen,last_seen,ver,overrides,revoked FROM devices ORDER BY last_seen DESC').all()).results);
+  const dv = p.match(/^\/api\/devices\/([A-Za-z0-9_-]{8,40})(?:\/(overrides|cmd|revoke))?$/);
+  if (dv) {
+    const id = dv[1], act = dv[2], b = m === 'GET' || m === 'DELETE' ? {} : await req.json().catch(() => ({}));
+    if (!act && m === 'PATCH') { await env.DB.prepare('UPDATE devices SET name=? WHERE id=?').bind(String(b.name || '').trim().slice(0, 40), id).run(); return json({ ok: true }); }
+    if (!act && m === 'DELETE') { await env.DB.prepare('DELETE FROM devices WHERE id=?').bind(id).run(); return json({ ok: true }); }
+    if (act === 'overrides' && m === 'PUT') {
+      const o = cleanSettings(b);
+      await env.DB.prepare('UPDATE devices SET overrides=? WHERE id=?').bind(Object.keys(o).length ? JSON.stringify(o) : null, id).run(); return json(o);
+    }
+    if (act === 'revoke' && m === 'POST') { await env.DB.prepare('UPDATE devices SET revoked=1 WHERE id=?').bind(id).run(); return json({ ok: true }); }
+    if (act === 'cmd' && m === 'POST') {
+      const type = String(b.type || '');
+      if (!['next', 'prev', 'pause', 'play', 'show', 'reload'].includes(type)) return json({ error: 'Bad command' }, 400);
+      const d = await env.DB.prepare('SELECT cmd_seq FROM devices WHERE id=?').bind(id).first();
+      if (!d) return json({ error: 'Not found' }, 404);
+      const seq = (d.cmd_seq || 0) + 1, photo = type === 'show' && /^[0-9a-f-]{36}$/.test(b.photo) ? b.photo : undefined;
+      await env.DB.prepare('UPDATE devices SET cmd=?, cmd_seq=? WHERE id=?').bind(JSON.stringify({ seq, type, photo }), seq, id).run();
+      return json({ ok: true, seq });
+    }
+  }
+  // ---- recently deleted (30 days), duplicate check, rotate (replace), AI caption suggestion
+  if (p === '/api/trash' && m === 'GET') {
+    const old = (await env.DB.prepare('SELECT id FROM photos WHERE deleted_at IS NOT NULL AND deleted_at < ?').bind(Date.now() - 30 * 864e5).all()).results;
+    for (const r of old) { await env.BUCKET.delete(r.id); await env.BUCKET.delete(r.id + '-t'); await env.DB.prepare('DELETE FROM photos WHERE id=?').bind(r.id).run(); }
+    return json((await env.DB.prepare('SELECT id,album_id,kind,duration,bytes,caption,taken_at,uploaded_at,deleted_at FROM photos WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC').all()).results);
+  }
+  if (p === '/api/photos/check' && m === 'POST') {
+    const b = await req.json().catch(() => ({})), dups = [];
+    for (const fp of (Array.isArray(b.fps) ? b.fps : []).map(String).filter(x => /^[0-9a-f]{64}$/.test(x)).slice(0, 100))
+      if (await env.DB.prepare('SELECT 1 x FROM photos WHERE fp=? LIMIT 1').bind(fp).first()) dups.push(fp);
+    return json({ dups });
+  }
+  if (p === '/api/photos/replace' && m === 'POST') { // used by Rotate: same metadata, new image
+    const fd = await req.formData().catch(() => null), f = fd && fd.get('file'), old = String((fd && fd.get('old')) || '');
+    const row = /^[0-9a-f-]{36}$/.test(old) ? await env.DB.prepare("SELECT * FROM photos WHERE id=? AND kind='photo'").bind(old).first() : null;
+    if (!f || typeof f === 'string' || !row) return json({ error: 'Bad request' }, 400);
+    const buf = await f.arrayBuffer(), u8 = new Uint8Array(buf.slice(0, 2));
+    if (!(u8[0] === 0xFF && u8[1] === 0xD8)) return json({ error: 'JPEG only' }, 415);
+    const id = crypto.randomUUID();
+    await env.BUCKET.put(id, buf, { httpMetadata: { contentType: 'image/jpeg' } });
+    const th = fd.get('thumb');
+    if (th && typeof th !== 'string' && th.size < 1e6) await env.BUCKET.put(id + '-t', await th.arrayBuffer(), { httpMetadata: { contentType: 'image/jpeg' } });
+    await env.DB.prepare('INSERT INTO photos(id,album_id,kind,caption,taken_at,width,height,bytes,uploaded_at,favorite,hidden,fp) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(id, row.album_id, 'photo', row.caption, row.taken_at, num(fd.get('w'), 0), num(fd.get('h'), 0), buf.byteLength, row.uploaded_at, row.favorite, row.hidden, row.fp).run();
+    try { await env.DB.prepare('UPDATE photos SET kb_move=?,kb_speed=? WHERE id=?').bind(row.kb_move ?? null, row.kb_speed ?? null, id).run(); } catch {}
+    await env.BUCKET.delete(old); await env.BUCKET.delete(old + '-t'); await env.DB.prepare('DELETE FROM photos WHERE id=?').bind(old).run();
+    return json({ id });
+  }
+  const sg = p.match(/^\/api\/photos\/([0-9a-f-]{36})\/suggest$/);
+  if (sg && m === 'POST') {
+    if (!env.AI) return json({ error: 'Workers AI is not enabled: add the AI binding (see the README)' }, 501);
+    const o = (await env.BUCKET.get(sg[1] + '-t')) || (await env.BUCKET.get(sg[1]));
+    if (!o) return json({ error: 'Not found' }, 404);
+    try {
+      const r = await env.AI.run(env.AI_CAPTION_MODEL || '@cf/llava-hf/llava-1.5-7b-hf', { image: [...new Uint8Array(await o.arrayBuffer())], prompt: 'Write a short, warm caption of at most 8 words for this family photo. Reply with the caption only.', max_tokens: 24 });
+      const caption = String(r.description || r.response || '').split('\n')[0].trim().replace(/^["'\s]+|["'\s.]+$/g, '').slice(0, 80);
+      return caption ? json({ caption }) : json({ error: 'No suggestion this time' }, 502);
+    } catch { return json({ error: 'AI request failed' }, 502); }
+  }
   if (p === '/api/photos/bulk' && m === 'POST') {
     const b = await req.json().catch(() => ({})), ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter(x => /^[0-9a-f-]{36}$/.test(x)).slice(0, 200);
-    if (b.action === 'delete') for (const id of ids) {
+    if (b.action === 'delete') { const t = Date.now(); for (const id of ids) await env.DB.prepare('UPDATE photos SET deleted_at=? WHERE id=?').bind(t, id).run(); }
+    else if (b.action === 'restore') { for (const id of ids) await env.DB.prepare('UPDATE photos SET deleted_at=NULL WHERE id=?').bind(id).run(); }
+    else if (b.action === 'favorite' || b.action === 'hide') { const col = b.action === 'hide' ? 'hidden' : 'favorite', v = b.value ? 1 : 0; for (const id of ids) await env.DB.prepare(`UPDATE photos SET ${col}=? WHERE id=?`).bind(v, id).run(); }
+    else if (b.action === 'purge') for (const id of ids) {
       await env.BUCKET.delete(id); await env.BUCKET.delete(id + '-t'); await env.DB.prepare('DELETE FROM photos WHERE id=?').bind(id).run();
+    } else if (b.action === 'kb') { // set Ken Burns movement and/or speed on many photos; '' = follow the general setting
+      const sets = [], vals = [];
+      for (const [k, list] of [['kb_move', KBM], ['kb_speed', KBS]]) if (k in b) {
+        const v = String(b[k] || ''); if (v && !list.includes(v)) return json({ error: 'Bad Ken Burns value' }, 400);
+        sets.push(k + '=?'); vals.push(v || null);
+      }
+      if (!sets.length) return json({ error: 'Nothing to set' }, 400);
+      try { for (const id of ids) await env.DB.prepare(`UPDATE photos SET ${sets.join(',')} WHERE id=?`).bind(...vals, id).run(); } catch { return json({ error: NEED_MIG }, 500); }
     } else if (b.action === 'move') {
       const a = String(b.album_id || ''), ok = /^[0-9a-f-]{36}$/.test(a) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(a).first();
       for (const id of ids) await env.DB.prepare('UPDATE photos SET album_id=? WHERE id=?').bind(ok ? a : null, id).run();
@@ -380,8 +525,8 @@ async function route(req, env) {
     return json({ ok: true, n: ids.length });
   }
   if (p === '/api/albums' && m === 'GET') {
-    const a = (await env.DB.prepare('SELECT a.id,a.name,(SELECT COUNT(*) FROM photos WHERE album_id=a.id) n,(SELECT id FROM photos WHERE album_id=a.id ORDER BY uploaded_at DESC LIMIT 1) cover FROM albums a ORDER BY a.name COLLATE NOCASE').all()).results;
-    const u0 = await env.DB.prepare('SELECT COUNT(*) n,(SELECT id FROM photos WHERE album_id IS NULL ORDER BY uploaded_at DESC LIMIT 1) cover FROM photos WHERE album_id IS NULL').first();
+    const a = (await env.DB.prepare('SELECT a.id,a.name,(SELECT COUNT(*) FROM photos WHERE album_id=a.id AND deleted_at IS NULL) n,(SELECT id FROM photos WHERE album_id=a.id AND deleted_at IS NULL ORDER BY uploaded_at DESC LIMIT 1) cover FROM albums a ORDER BY a.name COLLATE NOCASE').all()).results;
+    const u0 = await env.DB.prepare('SELECT COUNT(*) n,(SELECT id FROM photos WHERE album_id IS NULL AND deleted_at IS NULL ORDER BY uploaded_at DESC LIMIT 1) cover FROM photos WHERE album_id IS NULL AND deleted_at IS NULL').first();
     return json({ albums: a, unsorted: u0.n, ucover: u0.cover });
   }
   if (p === '/api/albums' && m === 'POST') {
@@ -411,13 +556,18 @@ async function route(req, env) {
     if (m === 'PATCH') {
       const b = await req.json().catch(() => ({}));
       if ('caption' in b) await env.DB.prepare('UPDATE photos SET caption=? WHERE id=?').bind(String(b.caption || '').slice(0, 200), id).run();
+      for (const k of ['favorite', 'hidden']) if (k in b) await env.DB.prepare(`UPDATE photos SET ${k}=? WHERE id=?`).bind(b[k] ? 1 : 0, id).run();
+      for (const [k, list] of [['kb_move', KBM], ['kb_speed', KBS]]) if (k in b) {
+        const v = String(b[k] || ''); if (v && !list.includes(v)) return json({ error: 'Bad Ken Burns value' }, 400);
+        try { await env.DB.prepare(`UPDATE photos SET ${k}=? WHERE id=?`).bind(v || null, id).run(); } catch { return json({ error: NEED_MIG }, 500); }
+      }
       if ('album_id' in b) {
         const a = String(b.album_id || ''), ok = /^[0-9a-f-]{36}$/.test(a) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(a).first();
         await env.DB.prepare('UPDATE photos SET album_id=? WHERE id=?').bind(ok ? a : null, id).run();
       }
       return json({ ok: true });
     }
-    if (m === 'DELETE') { await env.BUCKET.delete(id); await env.BUCKET.delete(id + '-t'); await env.DB.prepare('DELETE FROM photos WHERE id=?').bind(id).run(); return json({ ok: true }); }
+    if (m === 'DELETE') { await env.DB.prepare('UPDATE photos SET deleted_at=? WHERE id=?').bind(Date.now(), id).run(); return json({ ok: true }); }
   }
   return json({ error: 'Not found' }, 404);
 }
