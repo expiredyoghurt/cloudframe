@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Photos</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1b1d22;--mut:#6a7080;--line:#dfe2e8;--ac:#3b6cf6}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1d2026;--tx:#e8e8ea;--mut:#9aa0ad;--line:#2d313a;--ac:#5b8bff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom))}
+body.lock{overflow:hidden}
+header{max-width:1200px;margin:0 auto 12px}
+h1{margin:0;font-size:26px}
+#cnt{color:var(--mut);font-size:14px}
+#chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}
+#chips button{border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:999px;padding:6px 14px;font:inherit;font-size:14px;cursor:pointer}
+#chips button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+#grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+#grid button{padding:0;border:0;background:var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1;cursor:pointer}
+#grid img{width:100%;height:100%;object-fit:cover;display:block}
+#msg{max-width:1200px;margin:40px auto;text-align:center;color:var(--mut)}
+#lb{position:fixed;inset:0;background:#000e;display:none;flex-direction:column;z-index:10;touch-action:pan-y}
+#lb.on{display:flex}
+#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+#stage img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
+#bar{display:flex;align-items:center;gap:12px;padding:10px 14px max(10px,env(safe-area-inset-bottom));color:#e8e8ea;font-size:15px}
+#cap{flex:1;min-width:0}#cap small{color:#9aa0ad;display:block}
+#bar a,#bar button,#x,#pv,#nx{color:#fff;background:#ffffff22;border:0;border-radius:10px;padding:8px 14px;font:inherit;text-decoration:none;cursor:pointer}
+#x{position:absolute;top:max(10px,env(safe-area-inset-top));right:12px;z-index:2;font-size:20px;padding:6px 14px}
+#pv,#nx{position:absolute;top:50%;transform:translateY(-50%);font-size:24px;padding:14px 12px;z-index:2}
+#pv{left:8px}#nx{right:8px}
+@media (hover:none){#pv,#nx{display:none}}
+</style></head><body>
+<header><h1 id="ttl">Photos</h1><div id="cnt"></div><div id="chips"></div></header>
+<div id="grid"></div><div id="msg">Loading…</div>
+<div id="lb"><button id="x" aria-label="Close">✕</button><button id="pv" aria-label="Previous">‹</button><button id="nx" aria-label="Next">›</button>
+<div id="stage"><img id="big" alt=""></div><div id="bar"><div id="cap"></div><a id="dl" download>Save</a></div></div>
+<script>
+const $=s=>document.querySelector(s);
+let D=null,view=[],cur=-1,album='all',sig='';
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+async function load(first){
+  let d;try{d=await (await fetch('/api/pub/list',{cache:'no-store'})).json()}catch(e){if(first)$('#msg').textContent="Couldn't load the photos. Please try again.";return}
+  if(!d.on){D=null;$('#grid').innerHTML='';$('#chips').innerHTML='';$('#cnt').textContent='';$('#ttl').textContent='Photos';$('#msg').style.display='block';$('#msg').textContent="This gallery isn't available right now.";closeLb();return}
+  const s=d.items.map(x=>x.id).join();if(s===sig&&!first)return;sig=s;D=d;
+  $('#ttl').textContent=d.title||'Photos';document.title=$('#ttl').textContent;
+  if(album!=='all'&&!d.albums.some(a=>a.id===album))album='all';
+  const have=new Set(d.items.map(x=>x.a)),al=d.albums.filter(a=>have.has(a.id));
+  $('#chips').innerHTML=al.length>1?[{id:'all',name:'All'},...al].map(a=>`<button data-a="${esc(a.id)}" class="${a.id===album?'on':''}">${esc(a.name)}</button>`).join(''):'';
+  render();
+}
+function render(){
+  const keep=cur>=0&&view[cur]?view[cur].id:null;
+  view=D.items.filter(x=>album==='all'||x.a===album);
+  $('#cnt').textContent=view.length?view.length+(view.length==1?' photo':' photos'):'';
+  $('#msg').style.display=view.length?'none':'block';$('#msg').textContent=view.length?'':'No photos to show yet.';
+  $('#grid').innerHTML=view.map((x,i)=>`<button data-i="${i}" aria-label="Open photo ${i+1}"><img loading="lazy" decoding="async" src="/api/pub/thumb/${x.id}" alt="${esc(x.c)}"></button>`).join('');
+  if(cur>=0){const k=view.findIndex(x=>x.id===keep);if(k<0)closeLb();else cur=k}
+}
+function show(i){
+  if(!view.length)return;cur=(i+view.length)%view.length;const x=view[cur];
+  $('#big').src='/api/pub/photo/'+x.id;$('#big').alt=x.c||'';$('#dl').href='/api/pub/photo/'+x.id;
+  const t=x.t&&/^\d{4}-\d\d-\d\d$/.test(x.t)?new Date(x.t+'T12:00:00').toLocaleDateString(undefined,{dateStyle:'medium'}):'';
+  $('#cap').innerHTML=esc(x.c||'')+(t?`<small>${esc(t)}</small>`:'');
+  $('#lb').classList.add('on');document.body.classList.add('lock');
+  for(const k of [1,-1]){const n=view[(cur+k+view.length)%view.length];if(n)new Image().src='/api/pub/photo/'+n.id} // preload neighbours
+}
+function closeLb(){cur=-1;$('#lb').classList.remove('on');document.body.classList.remove('lock');$('#big').removeAttribute('src')}
+$('#grid').onclick=e=>{const b=e.target.closest('button[data-i]');if(b)show(+b.dataset.i)};
+$('#chips').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;album=b.dataset.a;[...$('#chips').children].forEach(c=>c.classList.toggle('on',c===b));render()};
+$('#x').onclick=closeLb;$('#pv').onclick=()=>show(cur-1);$('#nx').onclick=()=>show(cur+1);
+$('#stage').onclick=e=>{if(e.target.id==='stage')closeLb()};
+addEventListener('keydown',e=>{if(cur<0)return;if(e.key==='Escape')closeLb();else if(e.key==='ArrowLeft')show(cur-1);else if(e.key==='ArrowRight')show(cur+1)});
+let sx=0,sy=0;
+$('#stage').addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+$('#stage').addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5)show(cur+(dx<0?1:-1))},{passive:true});
+setInterval(()=>{if(!document.hidden)load(false)},60000); // new photos appear without reloading
+load(true);
+</script></body></html>

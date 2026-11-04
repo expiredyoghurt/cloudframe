@@ -53,6 +53,10 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 .fv{position:absolute;top:14px;left:44px;color:#ffd24a;font-size:20px;text-shadow:0 1px 3px #000}figure.hid img{opacity:.35}
 .ab{display:flex;gap:6px}.ab button{flex:1;min-height:32px;padding:2px}.sg{font-size:12px;color:var(--mut)}
 .dc{display:flex;flex-wrap:wrap;gap:6px}.row2 input[data-dn]{width:190px}#dvs{margin:0 0 14px}#dal label{margin-right:12px}
+.lk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}.lk a,#upn a{color:var(--ac);text-decoration:none}.lk code{background:var(--card2);border:1px solid var(--line);padding:4px 8px;border-radius:8px;word-break:break-all}.pal{display:grid;gap:2px;margin:6px 0}#v-public input[type=text]{width:100%;max-width:340px}#v-public select{max-width:100%}
+.dpd{width:min(940px,96vw);max-height:92vh;overflow:auto}.dpd h2{margin:0 0 6px}.dpd h4{margin:18px 0 4px;font-size:15px}.dpr{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.dg{border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0;display:flex;gap:10px;flex-wrap:wrap;background:var(--card2)}.di{width:132px;font-size:12px;color:var(--mut)}.di img{width:132px;height:99px;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px}.di b{color:var(--ok)}.di label{margin:2px 0;font-size:12px}
+.pair{display:flex;gap:10px;align-items:center;margin:6px 0}.pair div{width:120px;font-size:11px;color:var(--mut)}.pair img{width:120px;height:90px;object-fit:cover;border-radius:8px;display:block}
 .kbb{position:absolute;top:46px;left:14px;background:#000b;color:#fff;border-radius:8px;padding:1px 6px;font-size:12px}
 #lbw{width:fit-content;max-width:94vw;margin:0 auto;overflow:hidden;border-radius:10px;line-height:0}
 #lbi.kb{animation:kb var(--kd,15s) var(--ke,linear) both;will-change:transform}
@@ -60,21 +64,38 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 #lbk{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:10px;color:#fff}#lbk[hidden]{display:none}
 #lbr{position:fixed;top:14px;left:14px;display:flex;gap:6px}#lbr[hidden]{display:none}#lbrot{position:fixed;top:60px;right:14px;background:#000b;color:#fff;border:0}
 </style></head><body>
-<nav><div class=brand>📷 CloudFrame <small>v2.0</small></div>
+<nav><div class=brand>📷 CloudFrame <small>v2.2</small></div>
 <a href="#overview" data-t=overview><i>🏠</i><span>Overview</span></a><a href="#photos" data-t=photos><i>🖼</i><span>Media</span></a>
-<a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a>
+<a href="#albums" data-t=albums><i>📁</i><span>Albums</span></a><a href="#display" data-t=display><i>🎛</i><span>Display</span></a><a href="#public" data-t=public><i>🌐</i><span>Public pages</span></a>
 <a href="#storage" data-t=storage><i>☁</i><span>Storage</span></a><span class=sp></span>
 <a class=fr href="/"><i>▶</i><span>Frame</span></a><a class=lt href="/lite"><i>📱</i><span>Lite</span></a><button id=th title="Toggle light/dark"><i>🌓</i><span>Theme</span></button><button id=lo><i>⎋</i><span>Log out</span></button></nav>
 <main>
 <div class=v id=v-overview><div id=ov></div></div>
 <div class=v id=v-albums><div class=grid id=ag></div><p><small>Ticked albums are shown on the frame. Deleting an album moves its photos to Unsorted.</small></p></div>
+<div class=v id=v-public><div class=pg>
+<div class=panel><h3>Public upload page</h3>
+<label><input type=checkbox id=upon> Let guests upload photos (no login)</label>
+<div class=lk><code id=uplk></code><button id=upcp type=button>Copy link</button><a id=upop href="/up" target=_blank rel=noopener>Open ↗</a></div>
+<p><label>Photos go to <select id=upal></select></label></p>
+<label><input type=checkbox id=uprv> Hold new uploads for my review</label>
+<p><label>Page heading <input type=text id=uptt maxlength=64></label></p>
+<p class=sub id=upn></p>
+<p class=sub>Guests can only add photos (JPEG, PNG or WebP) to the album chosen above. They can't see, change or delete anything. Each device is limited to 60 uploads an hour and the album to 3,000 photos. Anyone with the link can use the page while it is on, so switch it off when the event is over. With review on, new uploads stay hidden from the frame and the public gallery until you show them.</p></div>
+<div class=panel><h3>Public viewer page</h3>
+<label><input type=checkbox id=pbon> Show a public gallery (no login)</label>
+<div class=lk><code id=pblk></code><button id=pbcp type=button>Copy link</button><a id=pbop href="/pub" target=_blank rel=noopener>Open ↗</a></div>
+<p><label>Page heading <input type=text id=pbtt maxlength=64></label></p>
+<b>Albums shown</b><div class=pal id=pbal></div>
+<p class=sub id=pbn></p>
+<p class=sub>Only photos (not videos) in the ticked albums are shown. Hidden photos and deleted photos never appear. Visitors can view and save photos but nothing else. Camera details and GPS location are removed from the photos they see.</p></div>
+</div></div>
 <div class=v id=v-photos>
 <div class=up><button class=p id=bp>⬆ Upload photos</button><button class=p id=bv>🎞 Upload videos</button><small>or drop files below. Videos: up to 5 minutes each.</small>
 <input type=file id=fv accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/*" multiple hidden></div>
 <div id=dz>Drop photos or videos here, or click to choose<br><small>Photos over 4 megapixels are shrunk automatically. Videos (up to 5 minutes) are compressed to 1080p in your browser before uploading, which takes about as long as the video: keep this tab open and visible.</small></div>
 <input type=file id=f accept="image/jpeg,image/png,image/webp,video/*" multiple hidden>
 <div id=bar><i></i></div><div id=st></div>
-<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><label>Type <select id=ft><option value="">Photos &amp; videos</option><option value=photo>Photos</option><option value=video>Videos</option><option value=fav>★ Favourites</option><option value=hid>Hidden from frame</option><option value=trash>Recently deleted</option></select></label><button id=sa>Select all shown</button> <small>Click photos to select them, then move or delete them. 🗑 on a photo deletes just that one.</small>
+<label>Upload into <select id=ua></select></label><label>Show <select id=fa></select></label><label>Type <select id=ft><option value="">Photos &amp; videos</option><option value=photo>Photos</option><option value=video>Videos</option><option value=fav>★ Favourites</option><option value=hid>Hidden from frame</option><option value=trash>Recently deleted</option></select></label><button id=sa>Select all shown</button> <button id=dpb>🔍 Find duplicates</button> <small>Click photos to select them, then move or delete them. 🗑 on a photo deletes just that one.</small>
 <div id=bb hidden><b id=bc></b> &nbsp; <select id=bm></select> <button id=bmv class=p>Move</button> <button id=bfv>★ Favourite</button> <button id=bhd>Hide</button> <button id=bsh>Show</button> <button id=bsg>✨ Suggest captions</button> <select id=bkm title="Ken Burns movement"></select> <select id=bks title="Ken Burns speed"></select> <button id=bkb>🎬 Set Ken Burns</button> <button id=bdl>Delete</button> <button id=brs class=p hidden>Restore</button> <button id=bpg hidden>Delete forever</button> <button id=bx>Clear</button></div>
 <div class=grid id=g></div></div>
 <div class=v id=v-display><div class=panel id=dvs><label>Settings for <select id=dsel><option value="">All devices (default)</option></select></label> <button id=drs type=button hidden>Reset this device to default</button> <small id=dnote></small><div id=dal hidden></div></div>
@@ -139,7 +160,18 @@ dialog#lb{padding:0;border:0;background:transparent;max-width:96vw;overflow:visi
 <div id=sl></div></div>
 </main>
 <dialog id=lb><div id=lbw><img id=lbi alt=''></div><video id=lbv controls playsinline style="display:none;max-width:94vw;max-height:80vh;border-radius:10px;margin:auto"></video><div id=lbc></div><div id=lbk hidden><span>🎬 Ken Burns</span><select id=lbkm title="Movement for this photo"></select><select id=lbks title="Speed for this photo"></select><button id=lbkp type=button>▶ Preview</button></div><button id=lbp>‹</button><button id=lbn>›</button><button id=lbd>🗑 Delete</button><button id=lbrot>⟳ Rotate</button><span id=lbr hidden><select id=lbs></select><button id=lbsb>📺 Show now</button></span></dialog>
-<dialog id=dd><p id=ddm style="white-space:pre-line"></p><form method=dialog><button value=cancel>Cancel upload</button> <button value=all>Upload anyway</button> <button value=skip class=p>Skip duplicates</button></form></dialog>
+<dialog id=dd><p id=ddm style="white-space:pre-line"></p><div id=ddp></div><form method=dialog><button value=cancel>Cancel upload</button> <button value=all>Upload anyway</button> <button value=skip class=p>Skip duplicates</button></form></dialog>
+<dialog id=dp class=dpd><h2>Find duplicates</h2>
+<p class=sub>Finds photos that show the same picture even if they were resized, re-saved, sent through a messaging app, or have different filenames and EXIF details. It looks at the picture itself. Not matched: videos, rotated or mirrored copies, and copies cropped by more than a few percent.</p>
+<div class=dpr><label>Sensitivity <select id=dps><option value=3>Strict: near-identical only</option><option value=6>Normal</option><option value=10>Loose: also very similar shots</option></select></label><span id=dpi class=sub></span></div>
+<div class=dpr><button id=dpscan>1. Analyse photos</button><button id=dpfind class=p>2. Find duplicates</button><small id=dpst></small></div>
+<div id=dpres></div>
+<div id=dpai hidden><h4>Similar scenes (Workers AI, optional)</h4>
+<label><input type=checkbox id=dpaion> Use Workers AI to find similar scenes <small>(off by default)</small></label>
+<p class=sub>Cloudflare Workers AI has no image-matching model, so this asks its vision model to describe each photo in a sentence and compares the descriptions. It finds photos of the same scene or moment, which are <b>not necessarily duplicates</b> (a group shot and the next frame of it will match; so will different people at the same table). Nothing is ticked for deletion. It uses your Workers AI free allowance; you can stop and carry on later. While the switch is off, nothing is sent to Workers AI.</p>
+<div id=dpaic hidden><div class=dpr><button id=dpaiscan>Analyse with AI</button><label>Match <select id=dpaim><option value=.95>Very close</option><option value=.92 selected>Close</option><option value=.88>Loose</option></select></label><button id=dpaifind>Find similar scenes</button><small id=dpaist></small></div>
+<div id=dpaires></div></div></div>
+<form method=dialog style="margin-top:12px"><button>Close</button></form></dialog>
 <dialog id=dg><p id=dm></p><form method=dialog><button value=0>Cancel</button> <button value=1 class=p>OK</button></form></dialog><div id=ts></div>
 <script>
 const $=s=>document.querySelector(s),JH={'Content-Type':'application/json'};let tt,A=[],U=0,UC=null,S={},P=[];const sel=new Set();
@@ -149,7 +181,7 @@ const ask=m=>new Promise(r=>{$('#dm').textContent=m;const d=$('#dg');d.onclose=(
 const j=async(u,o)=>{const r=await fetch(u,o);if(r.status==401||r.status==403)location='/login?mode=admin';const d=await r.json();if(d.error)toast(d.error);return d};
 const body=(o,m='POST')=>({method:m,headers:JH,body:JSON.stringify(o)});
 function tab(){const h=location.hash.slice(1)||'overview';document.querySelectorAll('.v').forEach(e=>e.classList.toggle('on',e.id=='v-'+h));
-document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.dataset.t==h));if(h=='storage')loadSt();if(h=='overview')loadOv().then(loadDev)}onhashchange=tab;
+document.querySelectorAll('nav [data-t]').forEach(a=>a.classList.toggle('on',a.dataset.t==h));if(h=='storage')loadSt();if(h=='public')renderPub();if(h=='overview')loadOv().then(loadDev)}onhashchange=tab;
 // ----- display settings
 Intl.supportedValuesOf?.('timeZone').forEach(z=>$('#tzs').append(new Option(z)));
 const fv=()=>{const b={};[...$('#sf').elements].filter(e=>e.name).forEach(x=>b[x.name]=x.type=='checkbox'?x.checked:x.value);return b};
@@ -210,7 +242,7 @@ const up=(d,cb)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('PO
 x.onload=()=>x.status<300?res():rej(new Error(JSON.parse(x.responseText||'{}').error||x.status));x.onerror=()=>rej(new Error('Network error'));x.send(d)});
 async function handle(fs){fs=await dupFilter([...fs]);if(!fs.length){$('#st').textContent='';return}$('#bar').style.display='block';let n=0;
 for(const f of fs){$('#st').textContent=`Uploading ${n+1} of ${fs.length}: ${f.name}`;
-try{if(isVid(f)){await uploadVideo(f,(fr,msg)=>{$('#st').textContent=f.name+': '+msg;$('#bar i').style.width=((n+fr)/fs.length*100)+'%'});n++;continue}const t=await taken(f),{file,w,h,th}=await prep(f),d=new FormData();d.append('file',file);d.append('thumb',th,'t.jpg');d.append('taken_at',t);d.append('w',w);d.append('h',h);d.append('album',$('#ua').value);d.append('fp',FP.get(f)||'');
+try{if(isVid(f)){await uploadVideo(f,(fr,msg)=>{$('#st').textContent=f.name+': '+msg;$('#bar i').style.width=((n+fr)/fs.length*100)+'%'});n++;continue}const t=await taken(f),{file,w,h,th}=await prep(f),d=new FormData();d.append('file',file);d.append('thumb',th,'t.jpg');d.append('taken_at',t);d.append('w',w);d.append('h',h);d.append('album',$('#ua').value);d.append('fp',FP.get(f)||'');d.append('ph',PHM.get(f)||'');
 await up(d,fr=>$('#bar i').style.width=((n+fr)/fs.length*100)+'%')}catch(x){toast(f.name+': '+x.message)}n++}
 $('#bar i').style.width='100%';$('#st').textContent=`Uploaded ${n} photo(s)`;setTimeout(()=>{$('#bar').style.display='none';$('#bar i').style.width=0},1500);refresh()}
 $('#dz').onclick=()=>$('#f').click();$('#f').onchange=e=>{handle(e.target.files);e.target.value=''};
@@ -409,12 +441,20 @@ $('#bpg').onclick=async()=>{if(!await ask(`Permanently delete ${sel.size} item${
 // duplicate warning: a quick fingerprint (size + first and last 256 KB) is compared with the library
 async function fprint(f){const sz=f.size,hd=await f.slice(0,262144).arrayBuffer(),tl=await f.slice(Math.max(0,sz-262144),sz).arrayBuffer(),pre=new TextEncoder().encode(sz+':'),u=new Uint8Array(pre.length+hd.byteLength+tl.byteLength);
 u.set(pre,0);u.set(new Uint8Array(hd),pre.length);u.set(new Uint8Array(tl),pre.length+hd.byteLength);return[...new Uint8Array(await crypto.subtle.digest('SHA-256',u))].map(x=>x.toString(16).padStart(2,'0')).join('')}
-const askDup=m=>new Promise(r=>{$('#ddm').textContent=m;const d=$('#dd');d.returnValue='';d.onclose=()=>r(d.returnValue||'cancel');d.showModal()});
-async function dupFilter(fs){$('#st').textContent='Checking for duplicates…';const fp=[];for(const f of fs){const h=await fprint(f);FP.set(f,h);fp.push(h)}
-const r=await j('/api/photos/check',body({fps:fp})),have=new Set(r.dups||[]),seen=new Set(),skip=new Set();
-fs.forEach(f=>{const h=FP.get(f);if(have.has(h)||seen.has(h))skip.add(f);seen.add(h)});
+const askDup=(m,pairs=[])=>new Promise(r=>{$('#ddm').textContent=m;const d=$('#dd'),urls=[],u=f=>{const x=URL.createObjectURL(f);urls.push(x);return x};
+$('#ddp').innerHTML=pairs.map(q=>`<div class=pair><div><img src="${u(q.f)}">${esc(q.f.name)}</div><span>≈</span><div><img src="${q.id?'/api/thumb/'+q.id:u(q.other)}">${q.id?'already in your library':esc(q.other.name)+' (same upload)'}</div></div>`).join('');
+d.returnValue='';d.onclose=()=>{urls.forEach(x=>URL.revokeObjectURL(x));r(d.returnValue||'cancel')};d.showModal()});
+const PHM=new Map(); // file -> fingerprint of the picture itself (v2.1)
+async function dupFilter(fs){$('#st').textContent='Checking for duplicates…';const fp=[],phs=[],maxd=+localStorage.dupd||6;
+for(const f of fs){{const h=await fprint(f);FP.set(f,h);fp.push(h)}if(!isVid(f)){try{const b=await createImageBitmap(f,{imageOrientation:'from-image'}),ph=await dhash(b);b.close&&b.close();PHM.set(f,ph);phs.push(ph)}catch(e){}}}
+const r=await j('/api/photos/check',body({fps:fp,phs,maxd})),have=new Set(r.dups||[]),near=r.near||{},seen=new Set(),seenP=[],skip=new Set(),pairs=[];
+fs.forEach(f=>{const h=FP.get(f),ph=PHM.get(f);
+if(have.has(h)||seen.has(h))skip.add(f);
+else if(ph&&near[ph]){skip.add(f);pairs.push({f,id:near[ph].id})}
+else if(ph){const k=seenP.find(x=>ham(x.ph,ph)<=maxd);if(k){skip.add(f);pairs.push({f,other:k.f})}}
+seen.add(h);if(ph)seenP.push({ph,f})});
 if(!skip.size)return fs;const names=[...skip].map(f=>f.name);
-const ch=await askDup(`${skip.size} of ${fs.length} file${fs.length==1?'':'s'} look like items you already have (or repeat within this batch):\n${names.slice(0,6).join(', ')}${names.length>6?' …':''}`);
+const ch=await askDup(`${skip.size} of ${fs.length} file${fs.length==1?'':'s'} look like items you already have (or repeat within this batch):\n${names.slice(0,6).join(', ')}${names.length>6?' …':''}`,pairs.slice(0,6));
 return ch=='cancel'?[]:ch=='skip'?fs.filter(f=>!skip.has(f)):fs}
 // AI caption suggestions (Cloudflare Workers AI)
 async function sugOne(id,quiet){if(!quiet)toast('Thinking of a caption…');const r=await j('/api/photos/'+id+'/suggest',{method:'POST'});if(r.caption){SUG[id]=r.caption;rP()}}
@@ -444,5 +484,72 @@ $('#lbk').onchange=async()=>{const q=shown()[li];if(!q)return;kbStop();const b={
 if(!r.error){q.kb_move=b.kb_move||null;q.kb_speed=b.kb_speed||null;toast('Saved ✓');rP()}};
 $('#bkb').onclick=async()=>{const b={ids:[...sel],action:'kb'};if($('#bkm').value!='-')b.kb_move=$('#bkm').value;if($('#bks').value!='-')b.kb_speed=$('#bks').value;
 if(!('kb_move' in b)&&!('kb_speed' in b))return toast('Choose a movement or a speed first');const r=await j('/api/photos/bulk',body(b));if(!r.error){toast('Ken Burns set ✓');await refresh()}};
+// ----- v2.1: duplicates found by looking at the picture (difference hash), plus optional Workers AI "similar scenes"
+// dHash: shrink to 9x8 grey, then one bit per neighbouring pair (is the left pixel brighter?). Resizing or re-saving a photo barely changes it.
+async function dhash(b){let c=b,w=b.width,h=b.height;
+while(w>=144&&h>=128){w=Math.ceil(w/2);h=Math.ceil(h/2);const o=new OffscreenCanvas(w,h),x=o.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(c,0,0,w,h);c=o} // halve until it is about 72x64 or less
+const o=new OffscreenCanvas(72,64),x=o.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';x.drawImage(c,0,0,72,64);
+const d=x.getImageData(0,0,72,64).data; // then average exact 8x8 blocks into a 9x8 grey grid, whatever the original size was
+const L=[];for(let r=0;r<8;r++){L.push(new Float64Array(9));for(let i=0;i<9;i++){let t=0;for(let y=0;y<8;y++)for(let q=0;q<8;q++){const k=((r*8+y)*72+i*8+q)*4;t+=.299*d[k]+.587*d[k+1]+.114*d[k+2]}L[r][i]=t}}
+let out='';for(let r=0;r<8;r++){let n=0;for(let i=0;i<8;i++)n=n*2+(L[r][i]>L[r][i+1]?1:0);out+=n.toString(16).padStart(2,'0')}return out}
+const pc32=x=>{x=x-((x>>>1)&0x55555555);x=(x&0x33333333)+((x>>>2)&0x33333333);return Math.imul((x+(x>>>4))&0x0f0f0f0f,0x01010101)>>>24};
+const ham=(a,b)=>pc32((parseInt(a.slice(0,8),16)^parseInt(b.slice(0,8),16))>>>0)+pc32((parseInt(a.slice(8),16)^parseInt(b.slice(8),16))>>>0);
+const dupD=()=>+$('#dps').value||6,yld=()=>new Promise(r=>setTimeout(r));
+const dupData=async w=>{const r=await j('/api/dup/data?what='+w);if(r&&r.migrated===false)toast('Run migration-v2.1.sql in the D1 Console first');return r&&r.rows?r:{rows:[],migrated:false}};
+function groupsOf(n,pairs){const par=[...Array(n).keys()],f=i=>{while(par[i]!=i){par[i]=par[par[i]];i=par[i]}return i};pairs.forEach(([a,b])=>{par[f(a)]=f(b)});const m=new Map();for(let i=0;i<n;i++){const r=f(i);(m.get(r)||m.set(r,[]).get(r)).push(i)}return[...m.values()].filter(g=>g.length>1)}
+let dpStop=false,dpBusy=false,aiStop=false,aiBusy=false;
+async function dupStatus(){const ph=await dupData('ph'),ph2=new Set(ph.rows.map(r=>r[0])),pics=P.filter(p=>p.kind!='video');
+const todo=pics.filter(p=>!ph2.has(p.id));$('#dpi').textContent=ph.migrated===false?'Database needs migration-v2.1.sql':`${pics.length-todo.length} of ${pics.length} photos analysed`;
+$('#dpscan').textContent=todo.length?`1. Analyse ${todo.length} photo${todo.length==1?'':'s'}`:'1. All photos analysed ✓';return{ph,todo}}
+$('#dpb').onclick=async()=>{$('#dps').value=localStorage.dupd||6;$('#dpres').innerHTML=$('#dpaires').innerHTML='';$('#dpst').textContent=$('#dpaist').textContent='';$('#dp').showModal();
+j('/api/me').then(m=>{$('#dpai').hidden=!m.ai;$('#dpaion').checked=!!S.dup_ai;$('#dpaic').hidden=!S.dup_ai});await dupStatus()};
+$('#dpaion').onchange=async()=>{const on=$('#dpaion').checked,d=await j('/api/settings',body({dup_ai:on},'PUT'));if(d.error){$('#dpaion').checked=!on;return}S=d;$('#dpaic').hidden=!on;toast(on?'AI similar scenes on':'AI similar scenes off')};
+$('#dps').onchange=()=>{localStorage.dupd=$('#dps').value};
+$('#dpscan').onclick=async()=>{if(dpBusy){dpStop=true;return}const{todo,ph}=await dupStatus();if(ph.migrated===false||!todo.length)return;dpBusy=true;dpStop=false;$('#dpscan').textContent='■ Stop';let n=0,bad=0;
+const one=async p=>{try{const r=await fetch('/api/thumb/'+p.id);if(!r.ok)throw 0;const b=await createImageBitmap(await r.blob(),{imageOrientation:'from-image'}),h=await dhash(b);b.close&&b.close();
+const q=await j('/api/photos/'+p.id,body({ph:h},'PATCH'));if(q.error)throw 0}catch(e){bad++}$('#dpst').textContent=`Analysing… ${++n} of ${todo.length}`};
+const q=[...todo];await Promise.all([0,1,2,3].map(async()=>{while(q.length&&!dpStop)await one(q.shift())}));
+dpBusy=false;$('#dpst').textContent=dpStop?`Stopped after ${n} (run again to continue)`:bad?`Done, ${bad} could not be read`:'Done ✓';await dupStatus()};
+const dkb=n=>n>1e6?(n/1e6).toFixed(1)+' MB':Math.max(1,Math.round(n/1e3))+' KB';
+function dupGroups(el,gs,pre,note){const byId=new Map(P.map(p=>[p.id,p]));el.innerHTML=(gs.length?`<p class=sub>${gs.length} group${gs.length==1?'':'s'}. ${note}</p>`:'<p class=ok>Nothing found at this sensitivity.</p>')+gs.slice(0,150).map(g=>{
+const it=g.map(i=>byId.get(i)).filter(Boolean).sort((a,b)=>(b.bytes||0)-(a.bytes||0));return`<div class=dg>${it.map((p,k)=>`<div class=di><img loading=lazy src="/api/thumb/${p.id}"><div>${esc(p.caption||'')||'No caption'}<br>${p.taken_at||''} · ${dkb(p.bytes||0)}</div>${pre?(k==0?'<b>Keep (largest)</b>':`<label><input type=checkbox data-dx="${p.id}" checked> Delete</label>`):`<label><input type=checkbox data-dx="${p.id}"> Delete</label>`}</div>`).join('')}</div>`}).join('')+
+(gs.length?'<div class=dpr><button class=p data-dpdel>Delete ticked photos</button><small>They move to Recently deleted for 30 days.</small></div>':'');if(gs.length>150)el.insertAdjacentHTML('beforeend','<p class=sub>Showing the first 150 groups; delete some and search again.</p>')}
+$('#dp').onclick=async e=>{if(!e.target.hasAttribute('data-dpdel'))return;const ids=[...e.target.closest('[id$=res],[id$=ires]').querySelectorAll('[data-dx]:checked')].map(x=>x.dataset.dx);if(!ids.length)return toast('Nothing ticked');
+await delPhotos(ids);if(e.target.closest('#dpres'))$('#dpfind').click();else $('#dpaifind').click()};
+let HG=[]; // hash groups from the last search, so AI results can leave them out
+$('#dpfind').onclick=async()=>{const{rows,migrated}=await dupData('ph');if(!migrated)return;const known=new Set(P.map(p=>p.id)),R=rows.filter(r=>known.has(r[0])),hi=R.map(r=>parseInt(r[1].slice(0,8),16)|0),lo=R.map(r=>parseInt(r[1].slice(8),16)|0),mx=dupD(),pairs=[];
+for(let a=0;a<R.length;a++)for(let b=a+1;b<R.length;b++)if(pc32((hi[a]^hi[b])>>>0)+pc32((lo[a]^lo[b])>>>0)<=mx)pairs.push([a,b]);
+const gs=groupsOf(R.length,pairs).map(g=>g.map(i=>R[i][0]));HG=gs;dupGroups($('#dpres'),gs,true,'The largest file in each group is kept; the others are ticked for deletion. Untick any you want to keep.')};
+// optional: Workers AI describes each photo, the description is embedded, and similar descriptions are listed for review
+$('#dpaiscan').onclick=async()=>{if(aiBusy){aiStop=true;return}const have=new Set((await dupData('emb')).rows.map(r=>r[0])),todo=P.filter(p=>p.kind!='video'&&!have.has(p.id));if(!todo.length){$('#dpaist').textContent='All photos analysed ✓';return}
+aiBusy=true;aiStop=false;$('#dpaiscan').textContent='■ Stop';let n=0,msg='';const q=[...todo];
+await Promise.all([0,1].map(async()=>{while(q.length&&!aiStop){const p=q.shift(),r=await fetch('/api/photos/'+p.id+'/embed',{method:'POST'}).then(x=>x.json()).catch(()=>({error:'Network error'}));if(r.error){msg=r.error;aiStop=true;break}$('#dpaist').textContent=`Analysing… ${++n} of ${todo.length}`}}));
+aiBusy=false;$('#dpaiscan').textContent='Analyse with AI';$('#dpaist').textContent=msg?`Stopped after ${n}: ${msg}. Run again to continue.`:aiStop?`Stopped after ${n} (run again to continue)`:'Done ✓'};
+$('#dpaifind').onclick=async()=>{const{rows,migrated}=await dupData('emb');if(!migrated)return;const known=new Set(P.map(p=>p.id)),R=rows.filter(r=>known.has(r[0]));if(R.length<2){$('#dpaires').innerHTML='<p class=sub>Analyse some photos first.</p>';return}
+const V=R.map(r=>Int8Array.from(atob(r[1]),c=>c.charCodeAt(0)<<24>>24)),N=V.map(v=>{let s=0;for(let i=0;i<v.length;i++)s+=v[i]*v[i];return Math.sqrt(s)||1}),th=+$('#dpaim').value,pairs=[],inHash=new Map();
+HG.forEach((g,k)=>g.forEach(id=>inHash.set(id,k)));$('#dpaist').textContent='Comparing…';
+for(let a=0;a<V.length;a++){const va=V[a],na=N[a],ka=inHash.get(R[a][0]);for(let b=a+1;b<V.length;b++){const vb=V[b],L=Math.min(va.length,vb.length);let d=0;for(let i=0;i<L;i++)d+=va[i]*vb[i];
+if(d/(na*N[b])>=th&&!(ka!==undefined&&ka===inHash.get(R[b][0])))pairs.push([a,b])}if(a%150==149){$('#dpaist').textContent=`Comparing… ${a+1} of ${V.length}`;await yld()}}
+$('#dpaist').textContent='';dupGroups($('#dpaires'),groupsOf(R.length,pairs).map(g=>g.map(i=>R[i][0])),false,'Same scene or moment, not necessarily the same photo. Tick only the ones you really want to remove.')};
+// ----- v2.2: public upload page (/up) and public viewer (/pub)
+const setC=(q,v)=>{$(q).checked=!!v},setT=(q,v)=>{if(document.activeElement!==$(q))$(q).value=v||''};
+function renderPub(){
+const sa=S.up_album||'',al=[{id:'none',name:'Unsorted',n:U},...A],pa=S.pub_albums||[];
+$('#upal').innerHTML=(sa===''?'<option value="">Public upload (default, made automatically)</option>':'')+'<option value="none">Unsorted</option>'+A.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');$('#upal').value=sa;
+setC('#upon',S.up_on);setC('#uprv',S.up_review);setT('#uptt',S.up_title);setC('#pbon',S.pub_on);setT('#pbtt',S.pub_title);
+$('#uplk').textContent=location.origin+'/up';$('#pblk').textContent=location.origin+'/pub';
+$('#pbal').innerHTML=al.map(a=>`<label><input type=checkbox data-pa="${a.id}"${pa.includes(a.id)?' checked':''}> ${a.id=='none'?'Unsorted':esc(a.name)} <small>(${a.n})</small></label>`).join('');
+const vis=P.filter(p=>p.kind!='video'&&!p.hidden&&pa.includes(p.album_id||'none')).length;
+$('#pbn').textContent=!S.pub_on?'The public gallery is switched off.':!pa.length?'Tick at least one album to show something.':`${vis} photo${vis==1?'':'s'} shown right now.`;
+const ua=S.up_album==='none'?null:(S.up_album||undefined),held=ua===undefined?0:P.filter(p=>p.hidden&&(p.album_id||null)===ua).length;
+$('#upn').innerHTML=!S.up_on?'The upload page is switched off.':(held?`${held} hidden photo${held==1?'':'s'} in that album. <a href="#photos" id=upre>Review them</a>`:'The upload page is on.')}
+let pbT;const pubBody=()=>({up_on:$('#upon').checked,up_album:$('#upal').value,up_review:$('#uprv').checked,up_title:$('#uptt').value,pub_on:$('#pbon').checked,pub_title:$('#pbtt').value,pub_albums:[...document.querySelectorAll('#pbal [data-pa]:checked')].map(x=>x.dataset.pa)});
+async function savePub(){const d=await j('/api/settings',body(pubBody(),'PUT'));if(d.error)return;S=d;await loadA();await loadP();renderPub();toast('Saved ✓')}
+$('#v-public').onchange=()=>{clearTimeout(pbT);pbT=setTimeout(savePub,250)};
+$('#v-public').oninput=e=>{if(e.target.type=='text'){clearTimeout(pbT);pbT=setTimeout(savePub,900)}};
+const cp=async(t,b)=>{try{await navigator.clipboard.writeText(t);toast('Link copied')}catch(e){prompt('Copy this link',t)}};
+$('#upcp').onclick=()=>cp(location.origin+'/up');$('#pbcp').onclick=()=>cp(location.origin+'/pub');
+$('#v-public').addEventListener('click',e=>{if(e.target.id!='upre')return;e.preventDefault();location.hash='#photos';const ua=S.up_album;$('#fa').value=ua&&ua!='none'&&[...$('#fa').options].some(o=>o.value==ua)?ua:(ua=='none'?'none':'all');$('#ft').value='hid';$('#ft').onchange()});
+{const _la=loadA;loadA=async function(){await _la();if(location.hash=='#public')renderPub()}}
 (async()=>{await loadDev();await loadS();loadM();j('/api/nowcast/areas').then(a=>Array.isArray(a)&&a.forEach(n=>$('#nca').append(new Option(n))));await refresh();tab()})();
 </script></body></html>

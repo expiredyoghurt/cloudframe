@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Upload photos</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1b1d22;--mut:#6a7080;--line:#dfe2e8;--ac:#3b6cf6;--ok:#1f9d63;--bad:#d64545}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1d2026;--tx:#e8e8ea;--mut:#9aa0ad;--line:#2d313a;--ac:#5b8bff;--ok:#4cc38a;--bad:#ef6b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+main{width:100%;max-width:520px;margin:auto 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
+h1{margin:0 0 6px;font-size:26px;line-height:1.2}
+p{margin:6px 0;color:var(--mut)}
+#pick{display:block;width:100%;margin:18px 0 6px;padding:18px;border:0;border-radius:14px;background:var(--ac);color:#fff;font:inherit;font-weight:600;font-size:19px;cursor:pointer}
+#pick:disabled{opacity:.6}
+#dz{border:2px dashed var(--line);border-radius:14px;padding:14px;text-align:center;color:var(--mut);font-size:15px}
+#dz.over{border-color:var(--ac);color:var(--tx)}
+ul{list-style:none;margin:14px 0 0;padding:0}
+li{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+li span.n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li span.s{color:var(--mut);white-space:nowrap}li.ok span.s{color:var(--ok)}li.bad span.s{color:var(--bad)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:14px 0 0;display:none}.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .2s}
+#sum{margin-top:12px;font-weight:600}#sum.ok{color:var(--ok)}#sum.bad{color:var(--bad)}
+.hide{display:none}
+@media (hover:none){#dz{display:none}}
+</style></head><body><main><div class="card">
+<div id="load"><p>Loading…</p></div>
+<div id="closed" class="hide"><h1>Uploads are closed</h1><p>Photo uploads aren't open right now. Please check with the host.</p></div>
+<div id="ready" class="hide">
+<h1 id="ttl">Share your photos</h1>
+<p>Choose the photos you'd like to add. You can pick several at once.</p>
+<button id="pick" type="button">Choose photos</button>
+<input id="file" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+<div id="dz">or drop photos here</div>
+<div class="bar" id="bar"><i></i></div>
+<div id="sum"></div>
+<ul id="list"></ul>
+<p id="note"></p>
+</div></div></main>
+<script>
+const $=s=>document.querySelector(s),MAX=4e6; // photos over 4 megapixels are shrunk on your device first
+let info=null,busy=false,stopped=false;
+async function init(){
+  try{info=await (await fetch('/api/up/info',{cache:'no-store'})).json()}catch(e){info=null}
+  $('#load').classList.add('hide');
+  if(!info||!info.on){$('#closed').classList.remove('hide');return}
+  $('#ttl').textContent=info.title||'Share your photos';document.title=$('#ttl').textContent;$('#ready').classList.remove('hide');
+  $('#note').textContent=info.review?'Photos are checked by the host before they appear.':'';
+}
+const blobOf=(c,q)=>new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('encode')),'image/jpeg',q));
+async function prep(f){
+  let b;try{b=await createImageBitmap(f,{imageOrientation:'from-image'})}catch(e){throw new Error("Can't read this photo")}
+  const px=b.width*b.height;let file=f,w=b.width,h=b.height;
+  if(px>MAX){const s=Math.sqrt(MAX/px);w=Math.floor(b.width*s);h=Math.floor(b.height*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(b,0,0,w,h);file=new File([await blobOf(c,.9)],'p.jpg',{type:'image/jpeg'})}
+  const k=Math.min(1,400/Math.max(b.width,b.height)),t=document.createElement('canvas');t.width=Math.max(1,Math.round(b.width*k));t.height=Math.max(1,Math.round(b.height*k));t.getContext('2d').drawImage(b,0,0,t.width,t.height);
+  b.close&&b.close();return{file,w,h,th:await blobOf(t,.8)}
+}
+async function taken(f){try{const t=new TextDecoder('latin1').decode(await f.slice(0,65536).arrayBuffer()),m=t.match(/(\d{4}):(\d\d):(\d\d) \d\d:\d\d:\d\d/);if(m)return m[1]+'-'+m[2]+'-'+m[3]}catch(e){}return new Date(f.lastModified||Date.now()).toISOString().slice(0,10)}
+const send=(d,cb)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('POST','/api/up');x.upload.onprogress=e=>e.lengthComputable&&cb(e.loaded/e.total);
+  x.onload=()=>{let j={};try{j=JSON.parse(x.responseText||'{}')}catch(e){}if(x.status<300)res(j);else{const er=new Error(j.error||('Error '+x.status));er.status=x.status;rej(er)}};
+  x.onerror=()=>rej(new Error('No connection'));x.send(d)});
+async function run(files){
+  if(busy)return;files=[...files].filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|webp)$/i.test(f.name));if(!files.length)return;
+  busy=true;stopped=false;$('#pick').disabled=true;$('#sum').textContent='';$('#sum').className='';$('#bar').style.display='block';$('#bar i').style.width='0';
+  const ul=$('#list');ul.innerHTML='';const rows=files.map(f=>{const li=document.createElement('li');li.innerHTML='<span class="n"></span><span class="s">Waiting</span>';li.firstChild.textContent=f.name;ul.append(li);return li});
+  let done=0,ok=0,held=false;
+  const one=async(f,li)=>{const st=li.lastChild;if(stopped){st.textContent='Not sent';li.className='bad';return}
+    try{st.textContent='Preparing…';const p=await prep(f),d=new FormData();d.append('file',p.file,'p.jpg');d.append('thumb',p.th,'t.jpg');d.append('w',p.w);d.append('h',p.h);d.append('taken_at',await taken(f));
+      st.textContent='0%';const r=await send(d,x=>st.textContent=Math.round(x*100)+'%');ok++;held=!!r.held;st.textContent='Sent ✓';li.className='ok'}
+    catch(e){st.textContent=e.message;li.className='bad';if(e.status==429||e.status==403)stopped=true}
+    $('#bar i').style.width=(++done/files.length*100)+'%'};
+  const q=files.map((f,i)=>[f,rows[i]]);
+  await Promise.all([0,1].map(async()=>{while(q.length){const[f,li]=q.shift();await one(f,li)}}));
+  busy=false;$('#pick').disabled=false;$('#pick').textContent='Add more photos';
+  const s=$('#sum');
+  if(ok==files.length){s.className='ok';s.textContent=(ok==1?'Your photo was':'All '+ok+' photos were')+' sent. Thank you!'+(held?(ok==1?' It will appear':' They will appear')+' once the host has checked '+(ok==1?'it.':'them.'):'')}
+  else if(ok){s.className='bad';s.textContent=ok+' of '+files.length+' sent. See below for the rest.'}
+  else{s.className='bad';s.textContent='Nothing was sent. See below.'}
+}
+$('#pick').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{run(e.target.files);e.target.value=''};
+const dz=$('#dz');['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('over')}));
+['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('over')}));
+dz.addEventListener('drop',e=>run(e.dataTransfer.files));
+addEventListener('dragover',e=>e.preventDefault());addEventListener('drop',e=>e.preventDefault());
+init();
+</script></body></html>

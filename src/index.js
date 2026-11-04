@@ -1,5 +1,5 @@
 const E = new TextEncoder();
-const VERSION = '2.0';
+const VERSION = '2.2';
 const DEVID = /^[A-Za-z0-9_-]{8,40}$/;
 const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'];
 const WMO = { 0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle', 61: 'Rain', 63: 'Rain', 65: 'Heavy rain',
@@ -87,7 +87,7 @@ async function settingsFor(env, dev) {
 function cleanSettings(b) {
   const out = {};
   for (const k in D) {
-    if (!(k in b)) continue;
+    if (!(k in b) || /^(up_|pub_|dup_ai)/.test(k)) continue; // these are site-wide, not per-device
     let v = b[k];
     if (Array.isArray(D[k])) { out[k] = (Array.isArray(v) ? v : []).map(String).filter(x => /^([0-9a-f-]{36}|none)$/.test(x)).slice(0, 100); continue; }
     const t = typeof D[k];
@@ -135,12 +135,17 @@ const H = {
 };
 const D = { overlay: true, position: 'bl', opacity: 0.35, units: 'C', h24: true, show_time: true, show_date: true,
   show_weather: true, show_temp: true, show_caption: true, show_info: true, interval: 15, order: 'shuffle', fit: 'cover', lat: '', lon: '', tz: 'UTC', hide_albums: [], music: false, music_volume: 0.5, music_shuffle: true, content: 'all', video_sound: false, video_max: 0, lite_videos: false, sleep_on: true, sleep_start: '20:00', sleep_end: '06:00', sleep_level: 5, show_psi: true, psi_region: 'national', sleep_music_off: true, light_sensor: false, light_min: 25, show_nowcast: true, nowcast_area: '', show_uv: true, overlay_scale: 100, sleep_wk_on: false, sleep_wk_start: '21:00', sleep_wk_end: '07:00', sleep_from_sunset: false, show_sun: true, show_outlook: true, show_warn: true, fav_boost: 3,
+  dup_ai: false, up_on: false, up_album: '', up_review: true, up_title: 'Share your photos', pub_on: false, pub_albums: [], pub_title: 'Photos',
   kb_on: false, kb_mode: 'all', kb_speed: 'slow', kb_zoom: 125, kb_pan: 115 };
 const ENUM = { position: ['tl', 'tr', 'bl', 'br', 'split'], units: ['C', 'F'], order: ['shuffle', 'sequential'], fit: ['cover', 'contain'], content: ['all', 'photos', 'videos'], psi_region: ['national', 'north', 'south', 'east', 'west', 'central'],
   kb_mode: ['all', 'zoom', 'pan', 'diag', 'lr', 'rl', 'tlbr', 'trbl', 'bltr', 'brtl', 'in', 'out'], kb_speed: ['slow', 'medium', 'fast', 'random'] };
 // Ken Burns choices stored per photo (empty = follow the general setting)
 const KBM = ['none', 'lr', 'rl', 'tlbr', 'trbl', 'bltr', 'brtl', 'in', 'out'], KBS = ['slow', 'medium', 'fast'];
 const NEED_MIG = 'Ken Burns per-photo settings need migration-v2.0.sql to be run once in the D1 Console';
+const NEED_MIG21 = 'Duplicate detection needs migration-v2.1.sql to be run once in the D1 Console';
+const PHASH = /^[0-9a-f]{16}$/; // 64-bit perceptual fingerprint of the picture itself (made in the browser)
+const pc32 = x => { x = x - ((x >>> 1) & 0x55555555); x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return Math.imul((x + (x >>> 4)) & 0x0f0f0f0f, 0x01010101) >>> 24; };
+const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 4096) s += String.fromCharCode(...u8.subarray(i, i + 4096)); return btoa(s); };
 // v1.9 and earlier had one "Photo info" switch (show_meta); it became two: caption and photo info
 const legacy = o => { if (o && 'show_meta' in o) { if (!('show_caption' in o)) o.show_caption = !!o.show_meta; if (!('show_info' in o)) o.show_info = !!o.show_meta; delete o.show_meta; } return o; };
 const json = (o, s = 200, h = {}) => new Response(JSON.stringify(o), { status: s, headers: { 'Content-Type': 'application/json', ...h } });
@@ -201,6 +206,118 @@ const page = async (env, req, n) => {
   const o = new Response(r.body, r); o.headers.set('Cache-Control', 'no-store'); return o;
 };
 
+// ---- public pages: /up (guests upload) and /pub (guests view). No login; each is a switch in the admin and only reaches what the admin allows.
+const UPNAME = 'Public upload', PUBH = { 'X-Robots-Tag': 'noindex, nofollow' };
+const imgKind = u => u[0] === 0xFF && u[1] === 0xD8 ? 'image/jpeg' : u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4E && u[3] === 0x47 ? 'image/png'
+  : u[0] === 0x52 && u[1] === 0x49 && u[2] === 0x46 && u[3] === 0x46 && u[8] === 0x57 && u[9] === 0x45 && u[10] === 0x42 && u[11] === 0x50 ? 'image/webp' : null;
+const cat = parts => { const o = new Uint8Array(parts.reduce((n, a) => n + a.length, 0)); let i = 0; for (const a of parts) { o.set(a, i); i += a.length; } return o; };
+// Photos shown publicly lose their metadata (camera, date, GPS location, software, captions) but keep their rotation.
+function exifOrientation(seg) { // seg = a whole JPEG APP1 "Exif" segment
+  try {
+    const t = 10, a = seg[t]; if (!((a === 0x49 || a === 0x4D) && seg[t + 1] === a)) return 1;
+    const le = a === 0x49, dv = new DataView(seg.buffer, seg.byteOffset, seg.byteLength), ifd = t + dv.getUint32(t + 4, le), n = dv.getUint16(ifd, le);
+    for (let i = 0; i < n && i < 64; i++) { const e = ifd + 2 + i * 12; if (dv.getUint16(e, le) === 0x0112) { const v = dv.getUint16(e + 8, le); return v >= 1 && v <= 8 ? v : 1; } }
+  } catch {}
+  return 1;
+}
+function stripJpeg(u) {
+  const keep = []; let i = 2, o = 1;
+  while (i + 4 <= u.length && u[i] === 0xFF) {
+    const k = u[i + 1];
+    if (k === 0xFF) { i++; continue; }
+    if (k === 0x01 || (k >= 0xD0 && k <= 0xD8)) { keep.push(u.subarray(i, i + 2)); i += 2; continue; }
+    if (k === 0xDA || k === 0xD9) break; // start of the picture data: the rest is copied untouched
+    const len = (u[i + 2] << 8) | u[i + 3]; if (len < 2 || i + 2 + len > u.length) break;
+    const seg = u.subarray(i, i + 2 + len), ex = k === 0xE1 && seg[4] === 0x45 && seg[5] === 0x78 && seg[6] === 0x69 && seg[7] === 0x66, icc = k === 0xE2 && seg[4] === 0x49 && seg[5] === 0x43 && seg[6] === 0x43 && seg[7] === 0x5F;
+    if (ex) o = exifOrientation(seg);
+    if (k === 0xE0 || k === 0xEE || icc || !((k >= 0xE0 && k <= 0xEF) || k === 0xFE)) keep.push(seg); // keep JFIF, Adobe colour and ICC profile; drop Exif, XMP, IPTC, comments
+    i += 2 + len;
+  }
+  const exif = o > 1 ? [new Uint8Array([0xFF, 0xE1, 0, 0x22, 0x45, 0x78, 0x69, 0x66, 0, 0, 0x4D, 0x4D, 0, 0x2A, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, o, 0, 0, 0, 0, 0, 0])] : []; // a tiny Exif block that only says which way is up
+  return cat([u.subarray(0, 2), ...exif, ...keep, u.subarray(i)]);
+}
+function stripPng(u) {
+  const out = [u.subarray(0, 8)]; let i = 8;
+  while (i + 12 <= u.length) {
+    const len = ((u[i] << 24) | (u[i + 1] << 16) | (u[i + 2] << 8) | u[i + 3]) >>> 0, end = i + 12 + len; if (end > u.length) break;
+    if (!['eXIf', 'tEXt', 'zTXt', 'iTXt', 'tIME'].includes(String.fromCharCode(u[i + 4], u[i + 5], u[i + 6], u[i + 7]))) out.push(u.subarray(i, end));
+    i = end;
+  }
+  return cat([...out, u.subarray(i)]);
+}
+function stripWebp(u) {
+  const out = [u.subarray(0, 12)]; let i = 12;
+  while (i + 8 <= u.length) {
+    const t = String.fromCharCode(u[i], u[i + 1], u[i + 2], u[i + 3]), len = (u[i + 4] | (u[i + 5] << 8) | (u[i + 6] << 16) | (u[i + 7] << 24)) >>> 0, end = Math.min(u.length, i + 8 + len + (len & 1));
+    if (t === 'EXIF' || t === 'XMP ') { i = end; continue; }
+    let c = u.subarray(i, end); if (t === 'VP8X' && c.length > 8) { c = c.slice(); c[8] &= ~0x0C; } // also clear the "has Exif / has XMP" flags
+    out.push(c); i = end;
+  }
+  const r = cat(out); new DataView(r.buffer).setUint32(4, r.length - 8, true); return r;
+}
+const stripMeta = u => { const t = imgKind(u); return t === 'image/jpeg' ? [stripJpeg(u), t] : t === 'image/png' ? [stripPng(u), t] : t === 'image/webp' ? [stripWebp(u), t] : [null, null]; };
+// where guest uploads go: the chosen album, Unsorted, or the default "Public upload" album (made on demand)
+async function upAlbum(env, S) {
+  if (S.up_album === 'none') return null;
+  if (/^[0-9a-f-]{36}$/.test(S.up_album || '') && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(S.up_album).first()) return S.up_album;
+  const r = await env.DB.prepare('SELECT id FROM albums WHERE name=? COLLATE NOCASE ORDER BY created_at LIMIT 1').bind(UPNAME).first();
+  if (r) return r.id;
+  const id = crypto.randomUUID(); await env.DB.prepare('INSERT INTO albums(id,name,created_at) VALUES(?,?,?)').bind(id, UPNAME, Date.now()).run(); return id;
+}
+async function guestUpload(req, env, S) {
+  const nc = { 'Cache-Control': 'no-store', ...PUBH };
+  if (!S.up_on) return json({ error: 'Uploads are closed right now' }, 403, nc);
+  // per-device limit (counted per IP in the existing login_attempts table, keyed "up:<ip>"): UP_MAX_PER_HOUR uploads an hour
+  const key = 'up:' + (req.headers.get('CF-Connecting-IP') || 'unknown'), now = Date.now(), max = num(env.UP_MAX_PER_HOUR, 60);
+  const row = await env.DB.prepare('SELECT fails,first_fail FROM login_attempts WHERE ip=?').bind(key).first(), inWin = !!row && now - row.first_fail < 36e5, n = inWin ? row.fails : 0;
+  if (n >= max) return json({ error: 'Too many uploads from this device just now. Please try again in a while.' }, 429, { ...nc, 'Retry-After': '3600' });
+  await env.DB.prepare('INSERT INTO login_attempts(ip,fails,first_fail,locked_until) VALUES(?1,?2,?3,0) ON CONFLICT(ip) DO UPDATE SET fails=?2, first_fail=?3, locked_until=0').bind(key, n + 1, inWin ? row.first_fail : now).run();
+  if (+req.headers.get('Content-Length') > 18e6) return json({ error: 'That photo is too large' }, 413, nc);
+  const fd = await req.formData().catch(() => null), f = fd && fd.get('file');
+  if (!f || typeof f === 'string') return json({ error: 'No photo received' }, 400, nc);
+  if (f.size > 15e6) return json({ error: 'That photo is too large' }, 413, nc);
+  const buf = await f.arrayBuffer(), type = imgKind(new Uint8Array(buf.slice(0, 12)));
+  if (!type) return json({ error: 'Only JPEG, PNG or WebP photos can be uploaded' }, 415, nc);
+  const aid = await upAlbum(env, S); // the album is always the admin's choice; anything the browser sends is ignored
+  if ((await env.DB.prepare('SELECT COUNT(*) n FROM photos WHERE album_id IS ?1 AND deleted_at IS NULL').bind(aid).first()).n >= num(env.UP_MAX_TOTAL, 3000)) return json({ error: 'This upload page has reached its limit' }, 403, nc);
+  const id = crypto.randomUUID(), taken = String(fd.get('taken_at') || ''), cl = v => Math.min(20000, Math.max(0, num(v, 0)));
+  await env.BUCKET.put(id, buf, { httpMetadata: { contentType: type } });
+  const th = fd.get('thumb');
+  if (th && typeof th !== 'string' && th.size < 1e6) { const tb = await th.arrayBuffer(), t8 = new Uint8Array(tb.slice(0, 2)); if (t8[0] === 0xFF && t8[1] === 0xD8) await env.BUCKET.put(id + '-t', tb, { httpMetadata: { contentType: 'image/jpeg' } }); }
+  await env.DB.prepare('INSERT INTO photos(id,album_id,caption,taken_at,width,height,bytes,uploaded_at,hidden) VALUES(?,?,?,?,?,?,?,?,?)')
+    .bind(id, aid, '', /^\d{4}-\d\d-\d\d$/.test(taken) ? taken : '', cl(fd.get('w')), cl(fd.get('h')), buf.byteLength, now, S.up_review ? 1 : 0).run();
+  return json({ ok: true, held: !!S.up_review }, 200, nc);
+}
+async function pubApi(req, env, p, m) {
+  const S = await getSettings(env), nc = { 'Cache-Control': 'no-store', ...PUBH };
+  if (p === '/api/up/info' && m === 'GET') return json({ on: !!S.up_on, title: S.up_title, review: !!S.up_review }, 200, nc);
+  if (p === '/api/up' && m === 'POST') return guestUpload(req, env, S);
+  if (p === '/api/pub/list' && m === 'GET') {
+    if (!S.pub_on) return json({ on: false }, 200, nc);
+    const ids = S.pub_albums.filter(x => x !== 'none'), none = S.pub_albums.includes('none'), q = ids.map(() => '?').join(',');
+    const cond = [ids.length ? `album_id IN (${q})` : '', none ? 'album_id IS NULL' : ''].filter(Boolean).join(' OR ');
+    let items = [], albums = [];
+    if (cond) {
+      items = (await env.DB.prepare(`SELECT id,album_id a,caption c,taken_at t FROM photos WHERE deleted_at IS NULL AND hidden=0 AND kind='photo' AND (${cond}) ORDER BY uploaded_at DESC LIMIT 3000`).bind(...ids).all()).results;
+      if (ids.length) albums = (await env.DB.prepare(`SELECT id,name FROM albums WHERE id IN (${q}) ORDER BY name COLLATE NOCASE`).bind(...ids).all()).results;
+      if (none) albums.push({ id: 'none', name: 'Unsorted' });
+      items.forEach(x => { x.a = x.a || 'none'; });
+    }
+    return json({ on: true, title: S.pub_title, albums, items }, 200, nc);
+  }
+  const pm = p.match(/^\/api\/pub\/(photo|thumb)\/([0-9a-f-]{36})$/);
+  if (pm && m === 'GET') { // only photos that are currently public: right album, not hidden, not deleted
+    const r = S.pub_on && await env.DB.prepare("SELECT album_id FROM photos WHERE id=? AND deleted_at IS NULL AND hidden=0 AND kind='photo'").bind(pm[2]).first();
+    if (!r || !S.pub_albums.includes(r.album_id || 'none')) return json({ error: 'Not found' }, 404, nc);
+    const o = (pm[1] === 'thumb' && (await env.BUCKET.get(pm[2] + '-t'))) || (await env.BUCKET.get(pm[2]));
+    if (!o) return json({ error: 'Not found' }, 404, nc);
+    const [b, type] = stripMeta(new Uint8Array(await o.arrayBuffer()));
+    if (!b) return json({ error: 'Not found' }, 404, nc);
+    return new Response(b, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=300', ...PUBH } });
+  }
+  return null;
+}
+
 async function route(req, env) {
   const u = new URL(req.url), p = u.pathname, m = req.method;
   if (m !== 'GET' && m !== 'HEAD' && p !== '/lite/login') { const o = req.headers.get('Origin'); let oh = ''; try { oh = new URL(o).host; } catch {} if (o && oh !== u.host) return json({ error: 'Bad origin' }, 403); }
@@ -213,6 +330,8 @@ async function route(req, env) {
   if (p === '/login' && m === 'GET') return page(env, req, 'login');
   if (p === '/lite/login') return m === 'POST' ? login(req, env) : liteForm('');
   if (p === '/api/login' && m === 'POST') return login(req, env);
+  if (m === 'GET' && (p === '/up' || p === '/pub')) { const o = await page(env, req, p.slice(1)); o.headers.set('X-Robots-Tag', 'noindex, nofollow'); return o; }
+  if (p === '/api/up' || p === '/api/up/info' || p.startsWith('/api/pub/')) { const r = await pubApi(req, env, p, m); if (r) return r; }
   const sc = await authed(req, env);
   if (!sc) return p.startsWith('/api/') ? json({ error: 'auth' }, 401) : Response.redirect(u.origin + (p.startsWith('/lite') ? '/lite/login' : '/login'), 302);
   if (p === '/api/me') return json({ scope: sc === 'a' ? 'admin' : 'frame', version: VERSION, viewer: viewerOn(env), ai: !!env.AI });
@@ -245,6 +364,9 @@ async function route(req, env) {
     cur.overlay_scale = Math.min(180, Math.max(60, cur.overlay_scale));
     cur.fav_boost = Math.min(5, Math.max(1, cur.fav_boost));
     cur.kb_zoom = Math.min(200, Math.max(105, cur.kb_zoom)); cur.kb_pan = Math.min(150, Math.max(105, cur.kb_pan));
+    cur.up_title = cur.up_title.trim() || D.up_title; cur.pub_title = cur.pub_title.trim() || D.pub_title;
+    if (cur.up_album && cur.up_album !== 'none' && !(/^[0-9a-f-]{36}$/.test(cur.up_album) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(cur.up_album).first())) cur.up_album = '';
+    if (cur.up_on && !cur.up_album) cur.up_album = (await upAlbum(env, cur)) || ''; // the default "Public upload" album is created as soon as uploads are switched on
     for (const k of ['sleep_start', 'sleep_end', 'sleep_wk_start', 'sleep_wk_end']) if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(cur[k])) cur[k] = D[k];
     await env.DB.prepare("INSERT INTO settings(key,value) VALUES('config',?1) ON CONFLICT(key) DO UPDATE SET value=?1").bind(JSON.stringify(cur)).run();
     return json(cur);
@@ -274,6 +396,7 @@ async function route(req, env) {
     }
     await env.DB.prepare('INSERT INTO photos(id,album_id,caption,taken_at,width,height,bytes,uploaded_at,fp) VALUES(?,?,?,?,?,?,?,?,?)')
       .bind(id, aid, '', taken, w, h, buf.byteLength, Date.now(), String(fd.get('fp') || '').slice(0, 64)).run();
+    const ph = String(fd.get('ph') || ''); if (PHASH.test(ph)) { try { await env.DB.prepare('UPDATE photos SET ph=? WHERE id=?').bind(ph, id).run(); } catch {} }
     return json({ id });
   }
   // ---- video: chunked multipart upload through the Worker, and range playback
@@ -474,7 +597,43 @@ async function route(req, env) {
     const b = await req.json().catch(() => ({})), dups = [];
     for (const fp of (Array.isArray(b.fps) ? b.fps : []).map(String).filter(x => /^[0-9a-f]{64}$/.test(x)).slice(0, 100))
       if (await env.DB.prepare('SELECT 1 x FROM photos WHERE fp=? LIMIT 1').bind(fp).first()) dups.push(fp);
-    return json({ dups });
+    const near = {}, phs = [...new Set((Array.isArray(b.phs) ? b.phs : []).map(String).filter(x => PHASH.test(x)))].slice(0, 100), maxd = Math.min(16, Math.max(0, num(b.maxd, 6)));
+    if (phs.length) {
+      try {
+        const rows = (await env.DB.prepare('SELECT id,ph FROM photos WHERE ph IS NOT NULL AND deleted_at IS NULL').all()).results.map(r => [r.id, parseInt(r.ph.slice(0, 8), 16) | 0, parseInt(r.ph.slice(8), 16) | 0]);
+        for (const ph of phs) {
+          const hi = parseInt(ph.slice(0, 8), 16) | 0, lo = parseInt(ph.slice(8), 16) | 0; let best = null;
+          for (const [id, h, l] of rows) { const d = pc32((hi ^ h) >>> 0) + pc32((lo ^ l) >>> 0); if (d <= maxd && (!best || d < best.d)) best = { id, d }; }
+          if (best) near[ph] = best;
+        }
+      } catch {} // not migrated yet: exact-match check still works
+    }
+    return json({ dups, near });
+  }
+  // ---- duplicate finder data (the browser does the grouping, so the Worker stays light) and optional Workers AI "similar scene" analysis
+  if (p === '/api/dup/data' && m === 'GET') {
+    const col = u.searchParams.get('what') === 'emb' ? 'emb' : 'ph';
+    try { return json({ migrated: true, rows: (await env.DB.prepare(`SELECT id,${col} v FROM photos WHERE ${col} IS NOT NULL AND deleted_at IS NULL AND kind='photo'`).all()).results.map(r => [r.id, r.v]) }); }
+    catch { return json({ migrated: false, rows: [] }); }
+  }
+  const em = p.match(/^\/api\/photos\/([0-9a-f-]{36})\/embed$/);
+  if (em && m === 'POST') { // Workers AI has no image-embedding model, so: describe the photo, then embed the description
+    if (!env.AI) return json({ error: 'Workers AI is not enabled: add the AI binding (see the README)' }, 501);
+    if (!(await getSettings(env)).dup_ai) return json({ error: 'AI similar-scene detection is switched off (Media > Find duplicates)' }, 403);
+    const o = (await env.BUCKET.get(em[1] + '-t')) || (await env.BUCKET.get(em[1]));
+    if (!o) return json({ error: 'Not found' }, 404);
+    let v;
+    try {
+      const r = await env.AI.run(env.AI_CAPTION_MODEL || '@cf/llava-hf/llava-1.5-7b-hf', { image: [...new Uint8Array(await o.arrayBuffer())], prompt: 'Describe this photo in one detailed sentence: who or what is in it, what they are doing, the setting, and the main colours.', max_tokens: 60 });
+      const desc = String(r.description || r.response || '').trim().slice(0, 400);
+      if (!desc) return json({ error: 'No description this time' }, 502);
+      const e = await env.AI.run(env.AI_EMBED_MODEL || '@cf/baai/bge-small-en-v1.5', { text: [desc] });
+      v = e && e.data && e.data[0];
+      if (!Array.isArray(v) || !v.length) throw new Error('no vector');
+    } catch { return json({ error: 'AI request failed' }, 502); }
+    const mx = Math.max(...v.map(Math.abs)) || 1, q = new Int8Array(v.map(x => Math.round(x / mx * 127)));
+    try { await env.DB.prepare('UPDATE photos SET emb=? WHERE id=?').bind(b64(new Uint8Array(q.buffer)), em[1]).run(); } catch { return json({ error: NEED_MIG21 }, 500); }
+    return json({ ok: true });
   }
   if (p === '/api/photos/replace' && m === 'POST') { // used by Rotate: same metadata, new image
     const fd = await req.formData().catch(() => null), f = fd && fd.get('file'), old = String((fd && fd.get('old')) || '');
@@ -561,6 +720,7 @@ async function route(req, env) {
         const v = String(b[k] || ''); if (v && !list.includes(v)) return json({ error: 'Bad Ken Burns value' }, 400);
         try { await env.DB.prepare(`UPDATE photos SET ${k}=? WHERE id=?`).bind(v || null, id).run(); } catch { return json({ error: NEED_MIG }, 500); }
       }
+      if (PHASH.test(String(b.ph || ''))) { try { await env.DB.prepare('UPDATE photos SET ph=? WHERE id=?').bind(b.ph, id).run(); } catch { return json({ error: NEED_MIG21 }, 500); } }
       if ('album_id' in b) {
         const a = String(b.album_id || ''), ok = /^[0-9a-f-]{36}$/.test(a) && await env.DB.prepare('SELECT 1 x FROM albums WHERE id=?').bind(a).first();
         await env.DB.prepare('UPDATE photos SET album_id=? WHERE id=?').bind(ok ? a : null, id).run();
