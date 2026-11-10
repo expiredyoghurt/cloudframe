@@ -19,9 +19,9 @@ binding = "BUCKET"
 bucket_name = "cloudframe"
 
 [vars]
-MAX_FAILS = "5"            # failed logins before lockout
-FAIL_WINDOW_MINUTES = "15" # window in which failures are counted
-LOCK_MINUTES = "30"        # lockout duration
+MAX_FAILS = "15"            # failed logins before lockout
+FAIL_WINDOW_MINUTES = "1" # window in which failures are counted
+LOCK_MINUTES = "1"        # lockout duration
 
 # Workers AI: powers the "suggest a caption" button in the admin (free daily allowance applies)
 [ai]
